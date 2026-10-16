@@ -1,0 +1,54 @@
+/* Here I am setting the font and background color for the webpage */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0;
+    margin: 0;
+    padding: 20px;
+}
+
+/* In this code we are setting the appearance of the main heading */
+h1 {
+    color: #333333;
+    text-align: center;
+}
+
+/* Here I am setting the instructions on thhe webpage */
+p {
+    text-align: center;
+}
+
+
+/* Here I will be settign up the main upload area and make it look like a card */
+main {
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+    max-width: 600px;
+    margin: 40px auto;
+}
+
+
+/* Here I will be adding spacing around the image upload field*/
+#sketchUpload {
+    display: block;
+    margin: 20px auto;
+    padding: 10px;
+    max-width: 100%;
+}
+
+
+/* In here we will be settingg up the area where the selected image will appear */
+#previewContainer {
+    text-align: center;
+    margin-top: 20px;
+}
+
+
+/* Here I am controlling the size and appearance of the preview image */
+#imagePreview {
+    max-width: 100%;
+    max-height: 350px;
+    border-radius: 8px;
+    object-fit: contain;
+}

@@ -1,0 +1,44 @@
+   
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- Here we are setting our webpage up and connecting the CSS file -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sketch Image Upload</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <main>
+        <!-- Here we are setting how the user sees the title and instructions for the user -->
+        <h1>Upload Your Sketch</h1>
+        <p>Select an image to preview before searching for reference images.</p>
+
+        <!-- Lets the user choose a JPG, JPEG or PNG image -->
+   <input
+        type="file"
+        id="sketchUpload"
+        accept=".jpg,.jpeg,.png"
+    >
+
+        <!-- Holds the image preview until the user selects a image-->
+    <div id="previewContainer">
+        <img id="imagePreview" alt="Uploaded sketch preview" hidden>
+    </div>
+
+        <!-- Lets the user remove the image if they want to upload a different one -->
+    <button id="removeImage" type="button" hidden>
+        Remove Image
+    </button>
+
+        <!-- Shows messages or errors about the selected file -->
+    <p id="uploadMessage" role="status"></p>
+
+
+    </main>
+        <!-- Here we are connecting the JavaScript file to make the upload feature work -->
+    <script src="script.js"></script>
+</body>
+</html>
