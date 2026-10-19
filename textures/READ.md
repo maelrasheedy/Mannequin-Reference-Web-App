@@ -1,1 +1,0 @@
-Textures for Mannequin Model
