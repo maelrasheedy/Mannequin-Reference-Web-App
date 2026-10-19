@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+
+
+<head> 
+	<meta charset = "UTF-8">
+	<meta name = "viewport" content = "width= device-width, initial-scale = 1">
+	<title>Mannequin Reference</title>
+	
+	<!-- CSS files linked here 
+		<link rel = "stylesheet" href = "styles/main.css">
+	-->
+
+
+</head>
+<body>
+
+	<!-- nav for TABS: a workspace tab and a help tab -->
+	<nav id = "tabs" role = "tablist" aria-label = "Main Sections">
+		<button type = "button" role = "tab" id = "tab-workspace"
+		aria-controls = "panel-workspace" aria-selected = "true">Workspace</button>
+		<button type = "button" role = "tab" id = "tab-help"
+		aria-controls = "panel-help" aria-selected = "false">Help</button>
+	</nav>
+	
+	<header id = "app-header"><h1>Mannequin Reference</h1></header>
+	
+	<!---------------------------MAIN workspace tab---------------------->
+	<main id = "panel-workspace" role = "tabpanel" aria-labelledby = "tab-workspace">
+	
+	<!-- banner for erros, warnings, success messages in workspace tab -->
+	<div id = "status-banner" role = "status" aria-live = "polite"></div>
+	
+	<!-- loading overlay which will cover WHOLE workspace --------------->
+	<div id = "loading-overlay" hidden>
+		<div id = "loading-spinner"></div>
+		<p>Loading...</p>
+	</div>
+	
+	<!----------workspace columns---------------------------------------->
+	<div id = "workspace-columns">
+	
+	<!--Left column holds the mannequin viewport and whatever tools-->
+	<section id = "viewport" aria-label = "3D mannequin">
+		<div id = "canvas-mount">
+		<p>Mannequin viewport will go here</p>
+		</div>
+	
+		<div id = "tool-buttons">
+			<button type = "button" id = "upload-button">Upload Image</button>
+			<input type = "file" id = "file-input" accept = ".png, .jpg, .jpeg" hidden>
+			<button type = "button" id = "rotate-button">Rotate</button>
+			<button type = "button" id = "bend-button">Bend</button>
+			<button type = "button" id = "tilt-button">Tilt</button>
+		</div>
+	</section>
+	
+	<!--Right column will hold the search button and results--------------->
+	<section id = "results-column" aria-label = "Search and Results">
+		<button type = "button" id = "search-button" disabled>Search</button>
+		
+		<div id = "results-gallery" aria-label = "Reference Image Results">
+			<div id = "gallery-grid">
+			<p>Reference Image Results Gallery Will Go Here</p>
+			</div>
+		</div>
+	</section>	
+	
+	</div><!---------------------------end workspace columns---------------->
+	
+	
+	<!--enlarged image view: when user clicks a pic in the results gallery--->
+	<dialog id = "image-viewer" aria-label= "Enlarged Reference Image">
+	<img id = "enlarged-image" src = "" alt = "">
+	<div id = "viewer-buttons">
+		<button type = "button" id = "download-button">Download</button>
+		<button type = "button" id = "close-viewer-button">Close</button>
+	</div>
+	</dialog>
+	
+	</main><!-------------------------end of main workspace tab -------------->
+	
+	<!-----------HELP tab ----------------------------------------------------->
+	<section id = "panel-help" role = "tabpanel" aria-labelledby = "tab-help" hidden>
+	<h2>Help</h2>
+	<p>Instructions for mannequin, upload, search, and results will remain on this tab</p>
+	</section>
+	
+	
+	
+	<!-------------------------where the javascript files will remain----->
+	
+	<script src= "scripts/view/tabs.js"></script>
+	
+</body>
+</html>
