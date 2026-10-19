@@ -11,7 +11,7 @@ so be careful with variable names*/
 	--color-bg: #F9F5EB;			/* background*/
 	--color-surface: #ffffff;		/*panels and buttons */
 	--color-text: #1a1a1a;
-	--color-text-muted: #55555;
+	--color-text-muted: #555555;
 	--color-border: #2b2b2b;
 	--color-accent: #8c1c2f;		/*dark red*/
 	--color-accent-text: #ffffff;	/*text ontop of accent*/
@@ -24,7 +24,7 @@ so be careful with variable names*/
 	--font-size-small: 0.875rem;
 	--font-size-base: 1rem;
 	--font-size-large: 1.25rem;
-	--font-size-title: 2 rem;
+	--font-size-title: 2rem;
 	--line-height: 1.5;
 	
 	/* Spacing Scale */
@@ -45,11 +45,11 @@ so be careful with variable names*/
 
 /*dark mode using same names, different values
 applied automatically when user device in dark mode */
-@media (perfers-color-scheme: dark)
+@media (prefers-color-scheme: dark)
 {
 	:root {
 		
-		--color-bg: #121212;
+		--color-bg: #060C2E;
 		--color-surface: #1e1e1e;
 		--color-text: #eeeeee;
 		--color-text-muted: #b5b5b5;

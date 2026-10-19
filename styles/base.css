@@ -47,7 +47,7 @@ after layout out rules added*/
 button{
 	font: inherit;
 	min-height: var(--touch-target);
-	min-width: var(--tough-target);
+	min-width: var(--touch-target);
 	padding: var(--space-2) var(--space-3);
 	color:var(--color-text);
 	background:var(--color-surface);
@@ -58,7 +58,7 @@ button{
 
 button:hover:not(:disabled) {
 	border-color: var(--color-accent);
-	color: not-allowed;
+	color: var(--color-accent);
 }
 
 
