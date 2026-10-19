@@ -1,0 +1,63 @@
+/* css file defining colors, spacing, sizes of the website
+TO BE USED BY OTHER CSS FILES!! 
+so be careful with variable names*/
+
+
+:root {
+	/* let browser know this page supports dark mode*/
+	color-scheme:light dark;
+	
+	/*colors (default = light mode) */
+	--color-bg: #F9F5EB;			/* background*/
+	--color-surface: #ffffff;		/*panels and buttons */
+	--color-text: #1a1a1a;
+	--color-text-muted: #55555;
+	--color-border: #2b2b2b;
+	--color-accent: #8c1c2f;		/*dark red*/
+	--color-accent-text: #ffffff;	/*text ontop of accent*/
+	--color-focus: #1f5fd1;			/*keyboard focus outline */
+	--color-disabled-bg: #e4e4e4;
+	--color-disabled-text: #767676;
+	
+	/*typography*/
+	--font-body: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+	--font-size-small: 0.875rem;
+	--font-size-base: 1rem;
+	--font-size-large: 1.25rem;
+	--font-size-title: 2 rem;
+	--line-height: 1.5;
+	
+	/* Spacing Scale */
+	--space-1: 0.25rem;
+	--space-2: 0.5rem;
+	--space-3: 1rem;
+	--space-4: 1.5rem;
+	--space-5: 2rem;
+	
+	/*shapes*/
+	--border-width: 1px;
+	--radius: 0.5rem;
+	
+	/*sizes*/
+	--touch-target: 44px;
+	--max-content-width: 1600px;
+}
+
+/*dark mode using same names, different values
+applied automatically when user device in dark mode */
+@media (perfers-color-scheme: dark)
+{
+	:root {
+		
+		--color-bg: #121212;
+		--color-surface: #1e1e1e;
+		--color-text: #eeeeee;
+		--color-text-muted: #b5b5b5;
+		--color-border: #8a8a8a;
+		--color-accent: #e58a99;
+		--color-accent-text: #121212;
+		--color-focus: #7fb0ff;
+		--color-disabled-bg: #2a2a2a;
+		--color-disabled-text: #8a8a8a;
+	}
+}
