@@ -1,0 +1,1 @@
+Scripts folder will hold Javascripts files : behaviors, clicking, toggling 

@@ -1,0 +1,75 @@
+/*css file for base browser configuration*/
+
+
+
+/*count padding and borders inside an element's width*/
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	font-family: var(--font-body);
+	font-size: var(--font-size-base);
+	line-height: var(--line-height);
+	background: var(--color-bg);
+	color: var(--color-text);
+}
+
+h1, 
+h2 {
+	margin: 0 0 var(--space-2);
+	line-height: 1.2;
+}
+
+h1 {font-size: var(--font-size-title);}
+
+h2 {font-size: var(--font-size-large);}
+
+p {margin: 0 0 var(--space-2);}
+
+img{
+	max-width: 100%;
+	height: auto;
+}
+
+
+
+/*makes hidden attribute always win. 
+makes help tab and file input stay hidden even 
+after layout out rules added*/
+
+[hidden]{display: none !important;}
+
+/*buttons*/
+button{
+	font: inherit;
+	min-height: var(--touch-target);
+	min-width: var(--touch-target);
+	padding: var(--space-2) var(--space-3);
+	color:var(--color-text);
+	background:var(--color-surface);
+	border: var(--border-width) solid var(--color-border);
+	border-radius: var(--radius);
+	cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+	border-color: var(--color-accent);
+	color: var(--color-accent);
+}
+
+
+button:disabled {
+	background: var(--color-disabled-bg);
+	color: var(--color-disabled-text);
+	cursor: not-allowed;
+}
+
+/*visible keyboard accessability*/
+:focus-visible {
+	outline: 3px solid var(--color-focus);
+	outline-offset: 2px;
+}
