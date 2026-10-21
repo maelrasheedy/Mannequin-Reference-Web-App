@@ -1,4 +1,4 @@
-   
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -12,33 +12,37 @@
 
 <body>
     <main>
-        <!-- Here we are setting how the user sees the title and instructions for the user -->
-        <h1>Upload Your Sketch</h1>
-        <p>Select an image to preview before searching for reference images.</p>
+
+        <!-- Here I am grouping the heading and instructions so I can hide them after uploading an image -->
+        <div id="uploadInstructions">
+            <h1>Upload Your Sketch</h1>
+            <p>Select an image to preview before searching for reference images.</p>
+        </div>
 
         <!-- Lets the user choose a JPG, JPEG or PNG image -->
-   <input
-        type="file"
-        id="sketchUpload"
-        accept=".jpg,.jpeg,.png"
-    >
+        <input
+            type="file"
+            id="sketchUpload"
+            accept=".jpg,.jpeg,.png"
+        >
 
         <!-- Holds the image preview until the user selects a image-->
-    <div id="previewContainer">
-        <img id="imagePreview" alt="Uploaded sketch preview" hidden>
-    </div>
+        <div id="previewContainer">
+            <img id="imagePreview" alt="Uploaded sketch preview" hidden>
+        </div>
 
         <!-- Lets the user remove the image if they want to upload a different one -->
-    <button id="removeImage" type="button" hidden>
-        Remove Image
-    </button>
+        <button id="removeImage" type="button" hidden>
+            Remove Image
+        </button>
 
         <!-- Shows messages or errors about the selected file -->
-    <p id="uploadMessage" role="status"></p>
-
+        <p id="uploadMessage" role="status"></p>
 
     </main>
-        <!-- Here we are connecting the JavaScript file to make the upload feature work -->
+
+    <!-- Here we are connecting the JavaScript file to make the upload feature work -->
     <script src="script.js"></script>
 </body>
+
 </html>

@@ -10,6 +10,11 @@ const removeImage = document.getElementById("removeImage");
 const uploadMessage = document.getElementById("uploadMessage");
 
 
+// Here I am connecting JavaScript to the heading and instructions
+const uploadInstructions = document.getElementById("uploadInstructions");
+
+
+
 // Here I am hiding the preview and remove button when the page first opens
 imagePreview.hidden = true;
 removeImage.hidden = true;
@@ -31,6 +36,9 @@ sketchUpload.addEventListener("change", function () {
     imagePreview.hidden = true;
     removeImage.hidden = true;
     uploadMessage.textContent = "";
+    
+    uploadInstructions.hidden = false;
+    document.querySelector("main").classList.remove("has-image");
 
     // Here I am checking if the user actually selected a file
     if (!file) {
@@ -63,6 +71,12 @@ sketchUpload.addEventListener("change", function () {
     imagePreview.src = imageURL;
     imagePreview.hidden = false;
 
+
+    // Here I am hiding the instructions when an image is uploaded
+    uploadInstructions.hidden = true;
+    document.querySelector("main").classList.add("has-image");
+
+
     // Here I am showing the button that lets the user remove the image
     removeImage.hidden = false;
 
@@ -90,6 +104,12 @@ removeImage.addEventListener("click", function () {
     // Here I am hiding the preview and remove button
     imagePreview.hidden = true;
     removeImage.hidden = true;
+
+
+    // Here I am bringing back the upload instructions when the image is removed
+    uploadInstructions.hidden = false;
+    document.querySelector("main").classList.remove("has-image");
+
 
     // Here I am letting the user know the image was removed
     uploadMessage.textContent = "Image removed successfully!";
