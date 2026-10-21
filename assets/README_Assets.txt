@@ -1,0 +1,1 @@
+Assets folder will hold images, icons, fonts

@@ -1,0 +1,1 @@
+Styles folder will hold the CSS files : colors, spacing, layout

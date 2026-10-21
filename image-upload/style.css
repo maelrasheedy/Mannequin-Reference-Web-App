@@ -1,0 +1,132 @@
+
+/* Here I am setting the font and background color for the webpage */
+html,
+body {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #080d2b;
+    color: #ffffff;
+    overflow: hidden;
+}
+
+/* In this code we are setting the appearance of the main heading */
+h1 {
+    color: #ffffff;
+    font-size: 24px;
+    text-align: center;
+    margin: 0 0 8px;
+}
+
+/* Here I am setting the instructions on thhe webpage */
+p {
+    color: #d5d9e8;
+    font-size: 14px;
+    text-align: center;
+    margin: 0 0 10px;
+}
+
+/* Here I will be settign up the main upload area and make it look like a card */
+main {
+    box-sizing: border-box;
+    background-color: #151b38;
+    color: #ffffff;
+    border: 1px solid #394363;
+    border-radius: 10px;
+    box-shadow: none;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    min-height: 0;
+    margin: 0;
+    padding: 18px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Here I will be adding spacing around the image upload field*/
+#sketchUpload {
+    display: block;
+    margin: 8px auto;
+    padding: 5px;
+    max-width: 100%;
+}
+
+/* In here we will be settingg up the area where the selected image will appear */
+#previewContainer {
+    width: 100%;
+    min-height: 0;
+    text-align: center;
+    margin-top: 8px;
+}
+
+/* Here I am controlling the size and appearance of the preview image */
+#imagePreview {
+    max-width: 100%;
+    max-height: 220px;
+    width: auto;
+    height: auto;
+    border-radius: 8px;
+    object-fit: contain;
+}
+
+/* Here I am styling the buttons inside my upload section */
+button {
+    background-color: #242b45;
+    color: #ffffff;
+    border: 1px solid #626b85;
+    border-radius: 6px;
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #354163;
+}
+
+/* Here I am making my uploaded image a little bigger while keeping it inside the upload box */
+main.has-image {
+    padding: 10px;
+}
+
+/* Here I am giving the image more room inside the upload section */
+main.has-image #previewContainer {
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+}
+
+/* Here I am making the image use more of the available space without cropping it */
+main.has-image #imagePreview {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+
+/* Here I am keeping the file input and Remove Image button centered */
+main.has-image #sketchUpload,
+main.has-image #removeImage {
+    flex-shrink: 0;
+    margin: 8px auto;
+}
+
+/* Here I am keeping the status message compact */
+main.has-image #uploadMessage {
+    flex-shrink: 0;
+    margin: 4px 0;
+}
