@@ -98,8 +98,8 @@ loader.load(
         let cameraZ = Math.abs(maxDim / 2 * Math.tan(fov * 2)) * 2.5;
 
         camera.position.set(0, maxDim * 0.4, cameraZ);
-        controls.minDistance = maxDim * 0.1;
-        controls.maxDistance = maxDim * 20;
+        controls.minDistance = maxDim * 0.3; // Minimum distance to prevent clipping
+        controls.maxDistance = maxDim * 15; // Maximum distance to allow zooming out
         controls.target.set(0, maxDim * 0.1, 0); 
         controls.update();
 

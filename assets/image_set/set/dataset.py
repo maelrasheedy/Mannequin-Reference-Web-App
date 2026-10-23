@@ -4,7 +4,7 @@ import shutil
 from pathlib import Path
 
 # --- CONFIGURATION ---
-RAW_DATA_DIR = "./raw_images"       # Folder containing raw class folders (e.g., group_set_a)
+RAW_DATA_DIR = "./raw_images"       # Folder containing raw class folders (e.g., group_set_a) (Change Here Later!)
 OUTPUT_DIR = "./assets/image_set"   # Your target root folder
 SPLITS = {"set": 0.80, "val": 0.20} # 80/20 train/val split
 SEED = 42                           # Ensures reproducibility
