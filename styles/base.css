@@ -9,6 +9,10 @@
 	box-sizing: border-box;
 }
 
+html {
+    scrollbar-gutter: stable;
+}
+
 body {
 	margin: 0;
 	font-family: var(--font-body);
@@ -56,6 +60,15 @@ button{
 	cursor: pointer;
 }
 
+
+/*selected tab buttonx gets filled with ACCENT color */
+#tabs [aria-selected = "true"],
+#tabs [aria-selected = "true"]:hover {
+	background: var(--color-accent);
+	color: var(--color-accent-text);
+	border-color:var(--color-accent);
+}
+
 button:hover:not(:disabled) {
 	border-color: var(--color-accent);
 	color: var(--color-accent);
@@ -78,6 +91,7 @@ button:disabled {
 /* Here I am moving the Workspace and Help tabs to the top center of the webpage */
 #tabs {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     align-items: center;
     gap: 10px;
@@ -130,7 +144,7 @@ button:disabled {
     transform: translate(-50%, -50%);
     font-size: 30px;
     font-weight: bold;
-    color: white;
+    color: var(--color-text);
 }
 
 /* Here I am allowing the whole webpage to scroll for future gallery images */
@@ -168,4 +182,28 @@ body {
         text-align: center;
         grid-row: 2;
     }
+
+
+    .info-panel {
+    max-width: 700px;
+    margin-inline: auto;
+    padding: var(--space-4) var(--space-3) var(--space-5);
+    text-align: center;
+    }
+
+.info-panel h2 {
+    margin-bottom: var(--space-3);
+    padding-bottom: var(--space-2);
+    border-bottom: 2px solid var(--color-accent);
+    }
+
+.info-panel h3 {
+    margin: var(--space-4) 0 var(--space-1);
+    color: var(--color-accent);
+    }
+
+.info-panel p {
+    line-height: 1.7;
+    }   
+
 }

@@ -22,6 +22,12 @@
             aria-controls = "panel-workspace" aria-selected = "true">Workspace</button>
         <button type = "button" role = "tab" id = "tab-help"
             aria-controls = "panel-help" aria-selected = "false">Help</button>
+        <button type = "button" role = "tab" id = "tab-about"
+            aria-controls = "panel-about" aria-selected = "false">About</button>
+        <button type = "button" role = "tab" id = "tab-terms"
+            aria-controls = "panel-terms" aria-selected = "false">Terms &amp; Legal</button>
+        <button type = "button" role = "tab" id = "tab-copyright"
+            aria-controls = "panel-copyright" aria-selected = "false">Copyright</button>
     </nav>
 
     <header id = "app-header">
@@ -109,6 +115,47 @@
     <section id = "panel-help" role = "tabpanel" aria-labelledby = "tab-help" hidden>
         <h2>Help</h2>
         <p>Instructions for mannequin, upload, search, and results will remain on this tab</p>
+    </section>
+
+    <!-----------ABOUT tab ----------------------------------------------------->
+    <section id="panel-about" role="tabpanel" aria-labelledby="tab-about" hidden>
+    <h2>About</h2>
+    <p>About text goes here.</p>
+    </section>
+
+    <!-----------TERMS & LEGAL tab --------------------------------------------->
+    <section id="panel-terms" class="info-panel" role="tabpanel" aria-labelledby="tab-terms" hidden>
+    <h2>Terms &amp; Legal</h2>
+
+    <h3>1. Acceptance and permitted use</h3>
+        <p>By accessing or using Mannequin Reference Search, you agree to these terms. 
+            You may use the service to find visual references, study poses, and create lawful work. 
+            Do not use the service to violate another person’s rights, break the law, bypass security, 
+            disrupt the site, scrape it in a way that degrades service, or misrepresent the source or 
+            license of an image</p>
+    <h3>2. People shown in photographs</h3>
+            <p>An open copyright license does not necessarily include a model release or grant privacy, 
+                publicity, personality, trademark, or similar rights. Use extra care with recognizable 
+                people, children, sensitive contexts, advertising, endorsements, and commercial uses. 
+                You are responsible for obtaining any permissions your use requires.</p>
+    <h3>3. Availability, warranties, and liability</h3>
+                <p>The service and all metadata are provided “as is” and “as available.” Mannequin Reference
+                     does not guarantee availability, accuracy, fitness for a particular purpose, ownership, 
+                     license status, or non-infringement. To the fullest extent permitted by applicable law, 
+                     Mannequin Reference and its creators are not liable for indirect, incidental, special, 
+                     consequential, or punitive damages, or for losses resulting from your use of the service or 
+                     third-party content. Nothing here excludes liability that cannot legally be excluded.</p>
+    <h3>4. Third parties and changes to these terms</h3>
+    <p>Links to source repositories, creators, licensors, and other services are provided for convenience; 
+        Mannequin Reference does not control their content or practices. These terms may be updated as the 
+        service changes. The effective date above will be revised when material changes are published. 
+        Continued use after an update means you accept the revised terms.</p>
+    </section>
+
+    <!-----------COPYRIGHT tab ------------------------------------------------->
+    <section id="panel-copyright" role="tabpanel" aria-labelledby="tab-copyright" hidden>
+    <h2>Copyright</h2>
+    <p>Copyright text goes here.</p>
     </section>
 
     <!-------------------------where the javascript files will remain----->

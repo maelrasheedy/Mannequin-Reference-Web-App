@@ -9,12 +9,12 @@ so be careful with variable names*/
 	
 	/*colors (default = light mode) */
 	--color-bg: #F9F5EB;			/* background*/
-	--color-surface: #ffffff;		/*panels and buttons */
+	--color-surface: #fff0f1;		/*panels and buttons */
 	--color-text: #1a1a1a;
 	--color-text-muted: #555555;
 	--color-border: #2b2b2b;
 	--color-accent: #8c1c2f;		/*dark red*/
-	--color-accent-text: #ffffff;	/*text ontop of accent*/
+	--color-accent-text: #fff0f1;	/*text ontop of accent*/
 	--color-focus: #1f5fd1;			/*keyboard focus outline */
 	--color-disabled-bg: #e4e4e4;
 	--color-disabled-text: #767676;
