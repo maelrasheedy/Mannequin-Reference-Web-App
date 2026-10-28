@@ -161,13 +161,13 @@ def calculate_joint_angle(point_a, point_b, point_c):
     return angle
 
 # Calculate the main arm and leg joint angles
-def calculate_body_angles(landmarks):
 
+def calculate_body_angles(landmarks):
     # MediaPipe provides 33 landmarks
     if len(landmarks) != 33:
         raise ValueError("MediaPipe poses must have 33 landmarks.")
 
-        # Calculate shoulder angles
+    # Calculate shoulder angles
     left_shoulder = calculate_joint_angle(
         landmarks[13], landmarks[11], landmarks[23]
     )
@@ -185,6 +185,15 @@ def calculate_body_angles(landmarks):
         landmarks[12], landmarks[14], landmarks[16]
     )
 
+    # Calculate hip angles
+    left_hip = calculate_joint_angle(
+        landmarks[11], landmarks[23], landmarks[25]
+    )
+
+    right_hip = calculate_joint_angle(
+        landmarks[12], landmarks[24], landmarks[26]
+    )
+
     # Calculate knee angles
     left_knee = calculate_joint_angle(
         landmarks[23], landmarks[25], landmarks[27]
@@ -194,10 +203,14 @@ def calculate_body_angles(landmarks):
         landmarks[24], landmarks[26], landmarks[28]
     )
 
-    # Return all four angles
+    # Return all eight body joint angles
     return {
+        "left_shoulder": left_shoulder,
+        "right_shoulder": right_shoulder,
         "left_elbow": left_elbow,
         "right_elbow": right_elbow,
+        "left_hip": left_hip,
+        "right_hip": right_hip,
         "left_knee": left_knee,
         "right_knee": right_knee
     }
