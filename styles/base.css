@@ -61,13 +61,7 @@ button{
 }
 
 
-/*selected tab buttonx gets filled with ACCENT color */
-#tabs [aria-selected = "true"],
-#tabs [aria-selected = "true"]:hover {
-	background: var(--color-accent);
-	color: var(--color-accent-text);
-	border-color:var(--color-accent);
-}
+
 
 button:hover:not(:disabled) {
 	border-color: var(--color-accent);
@@ -88,15 +82,66 @@ button:disabled {
 }
 
 
-/* Here I am moving the Workspace and Help tabs to the top center of the webpage */
+
+/* The dark bar behind the tabs,
+colors are defined right here
+with a darker set for dark mode. */
 #tabs {
+    --tabbar-bg: #410f07; /*bg*/
+    --tab-bg: #942310; /*buttons*/
+    --tab-hover-bg: #EF7F6B;
+    --tab-text: #d8d8d8;
+
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    align-items: center;
-    gap: 10px;
-    padding: 10px;
+    align-items: flex-end;
+    gap: 4px;
+    padding: 10px 10px 0;
+    background: var(--tabbar-bg);
 }
+
+@media (prefers-color-scheme: dark) {
+    #tabs {
+        --tabbar-bg: #000000;
+        --tab-bg: #1c1c1c;
+        --tab-hover-bg: #2e2e2e;
+    }
+}
+
+/* every tab will have rounded on top only and no bottom edge */
+#tabs button[role="tab"] {
+    font-size: 0.9rem;
+    padding: var(--space-1) var(--space-3);
+    background: var(--tab-bg);
+    color: var(--tab-text);
+    border: var(--border-width) solid rgba(255, 255, 255, 0.12);
+    border-bottom: none;
+    border-radius: var(--radius) var(--radius) 0 0;
+}
+
+@media (pointer: fine) {
+    #tabs button[role="tab"] {
+        min-height: 34px;
+    }
+}
+
+/* hovering over a tab that isnt selected */
+#tabs button[role="tab"]:not([aria-selected="true"]):hover {
+    background: var(--tab-hover-bg);
+    color: #ffffff;
+}
+
+/* selected tab will have same color as the page
+so it flows into the content */
+#tabs button[role="tab"][aria-selected="true"] {
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-weight: bold;
+    border-color: var(--color-bg);
+    border-top: 3px solid var(--color-accent);
+}
+
 
 /* Here I am centering the website title */
 #app-header {
@@ -182,28 +227,90 @@ body {
         text-align: center;
         grid-row: 2;
     }
+}
 
 
-    .info-panel {
-    max-width: 700px;
+/* INFO PANELS: Help, About, Terms & Legal, Copyright.
+   Deleted the older .info-panel rules first so they don't conflict. */
+
+.info-panel {
+    max-width: 760px;
     margin-inline: auto;
     padding: var(--space-4) var(--space-3) var(--space-5);
-    text-align: center;
-    }
+    text-align: left;              /* long text reads better left-aligned */
+}
 
 .info-panel h2 {
+    text-align: center;
     margin-bottom: var(--space-3);
     padding-bottom: var(--space-2);
     border-bottom: 2px solid var(--color-accent);
-    }
+}
 
 .info-panel h3 {
     margin: var(--space-4) 0 var(--space-1);
     color: var(--color-accent);
-    }
+}
 
 .info-panel p {
     line-height: 1.7;
-    }   
+}
 
+.info-panel ul {
+    padding-left: var(--space-4);
+    line-height: 1.7;
+}
+
+.info-panel li {
+    margin-bottom: var(--space-2);
+}
+
+/* Small centered line under the Terms title */
+.effective-date {
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-small);
+}
+
+/* Highlighted sentence on the Copyright tab */
+.callout {
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-surface);
+    border-left: 6px solid var(--color-accent);
+    border-radius: var(--radius);
+    font-weight: bold;
+}
+
+/* About tab: one card per team member */
+.team {
+    display: grid;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+}
+
+.member {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    background: var(--color-surface);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius);
+}
+
+.member img {
+    flex: none;
+    width: 140px;
+    height: 140px;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.member div {
+    flex: 1 1 260px;          /* text drops under the photo on narrow screens */
+}
+
+.member h3 {
+    margin-top: 0;
 }
