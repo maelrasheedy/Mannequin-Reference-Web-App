@@ -9,13 +9,16 @@ import {
 } from './mannequinRig.js';
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a1a1a); 
+//maryam commented out this color
+//scene.background = new THREE.Color(0x1a1a1a); 
 
 // Camera Setup
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
 
 // WebGL 2 Renderer
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+//maryam commented out line below and added line above to make background transparent
+//const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace; 
 document.body.appendChild(renderer.domElement);
