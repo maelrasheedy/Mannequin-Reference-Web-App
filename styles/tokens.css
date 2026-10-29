@@ -8,7 +8,7 @@ so be careful with variable names*/
 	color-scheme:light dark;
 	
 	/*colors (default = light mode) */
-	--color-bg: #F9F5EB;			/* background*/
+	--color-bg: #F5f0f0;			/* background*/
 	--color-surface: #ffffff;		/*panels and buttons */
 	--color-text: #1a1a1a;
 	--color-text-muted: #555555;
