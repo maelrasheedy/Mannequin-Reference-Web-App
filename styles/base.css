@@ -103,8 +103,8 @@ with a darker set for dark mode. */
 
 @media (prefers-color-scheme: dark) {
     #tabs {
-        --tabbar-bg: #000000;
-        --tab-bg: #1c1c1c;
+        --tabbar-bg: #0D1B68; /*bg*/
+        --tab-bg: #050F47; /*buttons*/
         --tab-hover-bg: #2e2e2e;
     }
 }
