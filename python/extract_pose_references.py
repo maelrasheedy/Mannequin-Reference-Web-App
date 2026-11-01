@@ -9,11 +9,7 @@ import cv2
 import mediapipe as mp
 
 from mediapipe.tasks import python
-from mediapipe.tasks.vision import (
-    PoseLandmarker,
-    PoseLandmarkerOptions,
-    RunningMode
-)
+from mediapipe.tasks.python import vision
 
 # Directory containing this Python script
 SCRIPT_DIR = os.path.dirname(
@@ -49,7 +45,7 @@ MODEL_PATH = os.path.join(
 )
 
 # CDN base URL.
-CDN_BASE_URL = "https://yourdomain.com/image_set/"
+CDN_BASE_URL = "/assets/image_set/"
 
 # Dataset configuration
 DATASET_SPLITS = ["set", "val"]
@@ -89,25 +85,32 @@ REQUIRED_LANDMARKS = [
 ]
 
 def calculate_plane_angles(vector):
+
     x, y, z = vector
+
     norm = np.linalg.norm(vector)
+
     if norm < 1e-8:
         return None
+
     angle_x = math.degrees(
         math.asin(
-            np.clip(abs(x) / norm, 0.0, 1.0)
+            np.clip(x / norm, -1.0, 1.0)
         )
     )
+
     angle_y = math.degrees(
         math.asin(
-            np.clip(abs(y) / norm, 0.0, 1.0)
+            np.clip(y / norm, -1.0, 1.0)
         )
     )
+
     angle_z = math.degrees(
         math.asin(
-            np.clip(abs(z) / norm, 0.0, 1.0)
+            np.clip(z / norm, -1.0, 1.0)
         )
     )
+
     return (
         round(angle_x, 1),
         round(angle_y, 1),
@@ -264,9 +267,9 @@ def extract_poses_from_directory():
     base_options = python.BaseOptions(
         model_asset_path=MODEL_PATH
     )
-    options = PoseLandmarkerOptions(
+    options = vision.PoseLandmarkerOptions(
         base_options=base_options,
-        running_mode=RunningMode.IMAGE,
+        running_mode=vision.RunningMode.IMAGE,
         num_poses= 1,
         min_pose_detection_confidence=0.5,
         min_pose_presence_confidence=0.5,
@@ -275,7 +278,7 @@ def extract_poses_from_directory():
     successful = 0
     skipped = 0
     print("\nStarting MediaPipe extraction...\n")
-    with PoseLandmarker.create_from_options(options) as landmarker:
+    with vision.PoseLandmarker.create_from_options(options) as landmarker:
         for idx, record in enumerate(image_records):
             file_path = record["file_path"]
             filename = record["filename"]
