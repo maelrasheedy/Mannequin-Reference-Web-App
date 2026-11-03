@@ -75,7 +75,11 @@ JOINT_SEGMENTS = {
     "right_hip": (24, 26),
     "right_knee": (26, 28),
     "neck_head": ("neck_base", "head_center"),
-    "spine": ("pelvis_mid", "neck_base")
+    "spine": ("pelvis_mid", "neck_base"),
+    "left_ankle": (27, 29),
+    "right_ankle": (28, 30),
+    "left_wrist": (15, 17),
+    "right_wrist": (16, 18)
 }
 
 REQUIRED_LANDMARKS = [
