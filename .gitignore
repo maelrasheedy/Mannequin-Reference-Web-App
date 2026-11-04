@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+host.zip
+assets/metadata/images-metadata-old.json

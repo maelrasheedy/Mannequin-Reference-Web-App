@@ -4,6 +4,8 @@ import { ColladaLoader } from './ColladaLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from './OrbitControls.js';
 
+import { createRigTracker } from './rig-landmarks.js';//maryam added for mannequin pose detection
+
 
 const scene = new THREE.Scene();
 //scene.background = new THREE.Color(0x1a1a1a);
@@ -48,6 +50,26 @@ controls.rotateSpeed = 1.25;
 controls.zoomSpeed = 3.75;
 
 let loadedModel = null;
+
+//added by maryam to detect if mannequin pose changed 
+let rigTracker = null;
+
+function sendPose() {
+    if (!rigTracker) {
+        console.warn("sendPose: rigTracker is null");
+        return;
+    }
+    const pose = rigTracker.readPose();
+    if (!pose) {
+        console.warn("sendPose: readPose() returned null");
+        return;
+    }
+    console.log("sendPose: sending", pose.pose_vector.length, "parts");
+    window.parent.postMessage(
+        { type: "MANNEQUIN_POSE_CHANGED", pose: pose },
+        window.location.origin
+    );
+}// end rig tracker functions
 
 // Raycasting lets us detect which mannequin body part the user clicks.
 const raycaster = new THREE.Raycaster();
@@ -182,6 +204,8 @@ window.addEventListener('keydown', (event) => {
         selectedArm.rotation.x -= rotationStep;
         console.log("Arm forward/backward:", selectedArm.name, "S");
     }
+
+    sendPose(); // added by maryam to send the updated pose to the parent window
 
 });
 
@@ -351,7 +375,7 @@ function stopJointDragging(event) {
     if (!draggingJoint) return;
 
     console.log("Finished dragging:", draggingJoint.name);
-
+    sendPose(); // added by maryam to send the updated pose to the parent window
 
     // CHECK ELBOW BENDING DIRECTION
     // Record the forearm rotation after FK dragging.
@@ -385,6 +409,7 @@ renderer.domElement.addEventListener('pointercancel', stopJointDragging, true);
 window.addEventListener('blur', () => {
     finishHandIKDrag();
     draggingJoint = null;
+    sendPose(); // added by maryam to send the updated pose to the parent window
     controls.enabled = true;
 });
 
@@ -721,6 +746,9 @@ console.groupEnd();
         controls.update();
 
         console.log('Model loaded cleanly! Dimensions computed:', size);
+        
+        rigTracker = createRigTracker(loadedModel);// added by maryam to create rig tracker for mannequin pose detection
+        sendPose(); // added by maryam to send the initial pose to the parent window
     },
     (xhr) => { console.log((xhr.loaded / xhr.total * 100) + '% loaded'); },
     (error) => { console.error('Asset parser crash reported:', error); }
@@ -1125,6 +1153,7 @@ function finishHandIKDrag(event) {
 
     console.log("Finished hand IK");
 
+    sendPose(); // added by maryam to send the updated pose to the parent window
     return true;
 }
 

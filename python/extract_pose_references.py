@@ -65,23 +65,52 @@ IMAGE_EXTENSIONS = (
 
 MIN_VISIBILITY = 0.5
 
+# Hands and feet are small in most photos, so MediaPipe is less sure about
+# them. They get their own (lower) visibility threshold. Raise it for cleaner
+# data, lower it to keep more images.
+MIN_EXTREMITY_VISIBILITY = 0.3
+
+# ---------------------------------------------------------------------------
+# POSE VECTOR SPEC  (must stay identical to mannequin/pose-vector.js)
+# ---------------------------------------------------------------------------
+# One entry per body part: the direction of the segment that STARTS at that
+# joint. Same 14 names, same order, as SEGMENTS in pose-vector.js.
+#
+# MediaPipe landmark numbers used:
+#   7/8 ears, 11/12 shoulders, 13/14 elbows, 15/16 wrists,
+#   17/18 pinkies, 19/20 index fingers, 23/24 hips, 25/26 knees,
+#   27/28 ankles, 31/32 foot tips.
+# "left" = the PERSON'S left (MediaPipe's convention).
 JOINT_SEGMENTS = {
-    "left_shoulder": (11, 13),
-    "left_elbow": (13, 15),
+    "torso": ("pelvis_mid", "neck_base"),
+    "neck": ("neck_base", "head_center"),
+
+    "left_shoulder": (11, 13),          # upper arm
+    "left_elbow": (13, 15),             # forearm
+    "left_wrist": (15, "left_hand_tip"),
+
     "right_shoulder": (12, 14),
     "right_elbow": (14, 16),
-    "left_hip": (23, 25),
-    "left_knee": (25, 27),
+    "right_wrist": (16, "right_hand_tip"),
+
+    "left_hip": (23, 25),               # thigh
+    "left_knee": (25, 27),              # shin
+    "left_ankle": (27, 31),             # foot
+
     "right_hip": (24, 26),
     "right_knee": (26, 28),
-    "neck_head": ("neck_base", "head_center"),
-    "spine": ("pelvis_mid", "neck_base")
+    "right_ankle": (28, 32),
 }
 
 REQUIRED_LANDMARKS = [
     7, 8,
     11, 12, 13, 14, 15, 16,
     23, 24, 25, 26, 27, 28
+]
+
+EXTREMITY_LANDMARKS = [
+    17, 18, 19, 20,
+    31, 32
 ]
 
 def calculate_plane_angles(vector):
@@ -111,16 +140,21 @@ def calculate_plane_angles(vector):
         )
     )
 
+    # "+ 0.0" turns -0.0 into 0.0 so the JSON never contains "-0.0"
     return (
-        round(angle_x, 1),
-        round(angle_y, 1),
-        round(angle_z, 1)
+        round(angle_x, 1) + 0.0,
+        round(angle_y, 1) + 0.0,
+        round(angle_z, 1) + 0.0
     )
 
 def validate_landmarks(landmarks):
     for index in REQUIRED_LANDMARKS:
         visibility = landmarks[index].visibility
         if visibility < MIN_VISIBILITY:
+            return False
+    for index in EXTREMITY_LANDMARKS:
+        visibility = landmarks[index].visibility
+        if visibility < MIN_EXTREMITY_VISIBILITY:
             return False
     return True
 
@@ -144,14 +178,54 @@ def build_landmark_dictionary(landmarks):
     lm_dict["head_center"] = (
         lm_dict[7] + lm_dict[8]
     ) / 2.0
+    # Hand direction: halfway between the pinky and index-finger points
+    lm_dict["left_hand_tip"] = (
+        lm_dict[17] + lm_dict[19]
+    ) / 2.0
+    lm_dict["right_hand_tip"] = (
+        lm_dict[18] + lm_dict[20]
+    ) / 2.0
     return lm_dict
 
-def generate_pose_vector(lm_dict):
+# ---------------------------------------------------------------------------
+# VIEWPOINT NORMALISATION  (must stay identical to bodyYaw/rotateYaw in
+# mannequin/pose-vector.js)
+# ---------------------------------------------------------------------------
+# A photo's numbers depend on where the photographer stood. To make matching
+# independent of the viewpoint, the whole body is rotated about the vertical
+# (y) axis until the line through the shoulders and hips lies along the x
+# axis, with the person's LEFT side on +x. Afterwards "forward" always means
+# toward the camera (negative z), whichever way the body was turned.
+def body_yaw(lm_dict):
+    x = (
+        (lm_dict[11][0] - lm_dict[12][0])
+        + (lm_dict[23][0] - lm_dict[24][0])
+    )
+    z = (
+        (lm_dict[11][2] - lm_dict[12][2])
+        + (lm_dict[23][2] - lm_dict[24][2])
+    )
+    if math.hypot(x, z) < 1e-6:
+        return 0.0  # degenerate: leave as is
+    return math.atan2(z, x)
+
+def rotate_yaw(vector, yaw):
+    c = math.cos(yaw)
+    s = math.sin(yaw)
+    return np.array([
+        vector[0] * c + vector[2] * s,
+        vector[1],
+        -vector[0] * s + vector[2] * c
+    ])
+
+def generate_pose_vector(lm_dict, normalize_yaw=True):
     pose_vector_list = []
+    yaw = body_yaw(lm_dict) if normalize_yaw else 0.0
     for joint_name, connection in JOINT_SEGMENTS.items():
         start_id, end_id = connection
-        vector = (
-            lm_dict[end_id] - lm_dict[start_id]
+        vector = rotate_yaw(
+            lm_dict[end_id] - lm_dict[start_id],
+            yaw
         )
         angles = calculate_plane_angles(vector)
 
