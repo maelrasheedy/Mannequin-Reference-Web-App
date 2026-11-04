@@ -6,7 +6,13 @@ import { OrbitControls } from './OrbitControls.js';
 
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a1a1a);
+//scene.background = new THREE.Color(0x1a1a1a);
+//added by maryam below to variable background color
+const themeBackground = getComputedStyle(document.documentElement)
+    .getPropertyValue('--color-surface')
+    .trim();
+scene.background = new THREE.Color(themeBackground);
+
 
 // Camera Setup
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
