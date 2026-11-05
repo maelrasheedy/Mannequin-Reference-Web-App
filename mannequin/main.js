@@ -3,8 +3,7 @@ import * as THREE from './three.js';
 import { ColladaLoader } from './ColladaLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'; 
 import { OrbitControls } from './OrbitControls.js';
-
-
+import { solveHandIK as solveHandIKRig } from './inverse_kinematics_rig.js';
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a1a1a); 
 
@@ -50,6 +49,26 @@ const mouse = new THREE.Vector2();
 // Stores the arm selected by the user.
 let selectedArm = null;
 
+// RECEIVE MANNEQUIN TOOL SELECTIONS
+
+let activeMannequinTool = "rotate";
+
+window.addEventListener("message", (event) => {
+
+    // Only accept messages from the parent website.
+    if (event.origin !== window.location.origin) return;
+
+    if (event.data?.type !== "mannequin:set-tool") return;
+
+    const allowedTools = ["rotate", "bend", "tilt"];
+
+    if (!allowedTools.includes(event.data.tool)) return;
+
+    activeMannequinTool = event.data.tool;
+
+    console.log("Active mannequin tool:", activeMannequinTool);
+
+});
 
  // Detect mouse clicks on the mannequin.
 renderer.domElement.addEventListener('click', (event) => {
@@ -995,69 +1014,27 @@ function beginHandIKDrag(event, clickedObject) {
 }
 
 // Adjust the shoulder and elbow toward a hand target.
+// Send the selected arm and target to the IK solver.
 function solveHandIK(target) {
 
     if (!activeHandIK) return;
 
-    const { shoulder, elbow, wrist } = activeHandIK;
+    const {
+        shoulder,
+        elbow,
+        wrist
+    } = activeHandIK;
 
-    const jointPosition = new THREE.Vector3();
-    const wristPosition = new THREE.Vector3();
-
-    // Cyclic Coordinate Descent (CCD) solver.
-    for (let iteration = 0; iteration < 15; iteration++) {
-
-        for (const joint of [elbow, shoulder]) {
-
-            loadedModel.updateMatrixWorld(true);
-
-            joint.getWorldPosition(jointPosition);
-            wrist.getWorldPosition(wristPosition);
-
-            const towardWrist = wristPosition.clone()
-                .sub(jointPosition);
-
-            const towardTarget = target.clone()
-                .sub(jointPosition);
-
-            if (
-                towardWrist.lengthSq() < 1e-10 ||
-                towardTarget.lengthSq() < 1e-10
-            ) {
-                continue;
-            }
-
-            const worldRotation = new THREE.Quaternion()
-                .setFromUnitVectors(
-                    towardWrist.normalize(),
-                    towardTarget.normalize()
-                );
-
-            const parentRotation = new THREE.Quaternion();
-
-            if (joint.parent) {
-                joint.parent.getWorldQuaternion(parentRotation);
-            }
-
-            const localRotation = parentRotation.clone()
-                .invert()
-                .multiply(worldRotation)
-                .multiply(parentRotation);
-
-            joint.quaternion.premultiply(localRotation);
-            // Apply elbow limits during IK solving.
-            constrainElbowRotation(joint);
-
-        }
-
-        loadedModel.updateMatrixWorld(true);
-
-        wrist.getWorldPosition(wristPosition);
-
-        if (wristPosition.distanceToSquared(target) < 1e-6) {
-            break;
-        }
-    }
+    solveHandIKRig({
+        model: loadedModel,
+        shoulder: shoulder,
+        elbow: elbow,
+        wrist: wrist,
+        target: target,
+        iterations: 15,
+        tolerance: 0.001,
+        constrainElbow: constrainElbowRotation
+    });
 }
 
 // Update the hand target while dragging.
