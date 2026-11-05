@@ -1,9 +1,11 @@
-
 import * as THREE from './three.js';
 import { ColladaLoader } from './ColladaLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'; 
 import { OrbitControls } from './OrbitControls.js';
-import { solveHandIK as solveHandIKRig } from './inverse_kinematics_rig.js';
+import {
+    solveHandIK as solveHandIKRig,
+    solveIKChain
+} from './inverse_kinematic_rig.js';
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a1a1a); 
 
@@ -123,7 +125,6 @@ renderer.domElement.addEventListener('click', (event) => {
     );
 
 
-    // VERIFY LEFT SHOULDER OBJECT
     // Check whether the clicked shoulder can be found in the GLB hierarchy.
     if (clickedPart.name === "Shoulder_ScreenLeft") {
 
@@ -156,47 +157,6 @@ renderer.domElement.addEventListener('click', (event) => {
     }
 });
 
-
-// Temporary keyboard controls for testing FK arm movements.
-window.addEventListener('keydown', (event) => {
-
-    // Only rotate an arm after selecting one.
-    if (!selectedArm) return;
-
-    // Ignore keyboard shortcuts while typing in an input field.
-    if (event.target instanceof HTMLElement &&
-        event.target.closest('input, textarea, select, [contenteditable="true"]')) {
-        return;
-    }
-
-    // Each key press rotates the selected arm by 5 degrees.
-    const rotationStep = THREE.MathUtils.degToRad(5);
-
-    const key = event.key.toLowerCase();
-
-    // Q and E: Rotate the arm sideways.
-    if (key === 'q') {
-        selectedArm.rotation.z += rotationStep;
-        console.log("Arm sideways:", selectedArm.name, "Q");
-    }
-
-    if (key === 'e') {
-        selectedArm.rotation.z -= rotationStep;
-        console.log("Arm sideways:", selectedArm.name, "E");
-    }
-
-    // W and S: Rotate the arm forward and backward.
-    if (key === 'w') {
-        selectedArm.rotation.x += rotationStep;
-        console.log("Arm forward/backward:", selectedArm.name, "W");
-    }
-
-    if (key === 's') {
-        selectedArm.rotation.x -= rotationStep;
-        console.log("Arm forward/backward:", selectedArm.name, "S");
-    }
-
-});
 
  // MOUSE DRAGGING FOR MANNEQUIN JOINTS
 let draggingJoint = null;
@@ -263,7 +223,33 @@ renderer.domElement.addEventListener('pointerdown', (event) => {
     const intersections = raycaster.intersectObject(loadedModel, true);
 
 
-    // Shift + click on a hand starts IK instead of normal FK.
+if (activeMannequinTool === "tilt") {
+
+    if (intersections.length > 0) {
+
+        const clickedObject = intersections[0].object;
+
+        let started = beginHandIKDrag(event, clickedObject);
+
+        if (!started) {
+            started = beginLegIKDrag(event, clickedObject);
+        }
+
+        if (!started) {
+            started = beginTorsoIKDrag(event, clickedObject);
+        }
+
+        if (!started) {
+            console.log(
+                "Select a hand, finger, foot, or head to use Tilt."
+            );
+        }
+    }
+
+    return;
+}
+
+    // SHIFT + CLICK remains available as an IK shortcut.
     if (event.shiftKey && intersections.length > 0) {
         beginHandIKDrag(event, intersections[0].object);
         return;
@@ -296,9 +282,19 @@ renderer.domElement.addEventListener('pointerdown', (event) => {
 // Rotate the selected joint as the mouse moves.
 renderer.domElement.addEventListener('pointermove', (event) => {
 
-    // Handles hand IK dragging before normal joint rotation.
+    // Handle inverse kinematics before normal joint rotation.
     if (activeHandIK) {
         updateHandIKDrag(event);
+        return;
+    }
+
+    if (activeLegIK) {
+        updateLegIKDrag(event);
+        return;
+    }
+
+    if (activeTorsoIK) {
+        updateTorsoIKDrag(event);
         return;
     }
 
@@ -320,6 +316,7 @@ renderer.domElement.addEventListener('pointermove', (event) => {
 
     // Apply elbow limits during FK dragging.
     constrainElbowRotation(draggingJoint);
+    constrainShoulderRotation(draggingJoint);
 
 
     // Apply conservative movement limits to the wrists.
@@ -352,12 +349,24 @@ renderer.domElement.addEventListener('pointermove', (event) => {
 
 }, true);
 
+
 // Stop dragging and restore camera controls.
 function stopJointDragging(event) {
 
-    // Finishes an active hand IK drag first.
+    // Finish active hand IK dragging.
     if (activeHandIK) {
         finishHandIKDrag(event);
+        return;
+    }
+
+    // Finish active leg IK dragging.
+    if (activeLegIK) {
+        finishLegIKDrag(event);
+        return;
+    }
+
+    if (activeTorsoIK) {
+        finishTorsoIKDrag(event);
         return;
     }
 
@@ -365,9 +374,7 @@ function stopJointDragging(event) {
 
     console.log("Finished dragging:", draggingJoint.name);
 
-
     // CHECK ELBOW BENDING DIRECTION
-    // Record the forearm rotation after FK dragging.
     if (draggingJoint.name.startsWith("Forearm_")) {
 
         console.log(
@@ -382,21 +389,47 @@ function stopJointDragging(event) {
         );
     }
 
+    // CHECK KNEE BENDING DIRECTION
+    if (draggingJoint.name.startsWith("Shin_")) {
+
+        console.log(
+            "KNEE BEND TEST:",
+            draggingJoint.name,
+            "X:",
+            THREE.MathUtils.radToDeg(draggingJoint.rotation.x).toFixed(2),
+            "Y:",
+            THREE.MathUtils.radToDeg(draggingJoint.rotation.y).toFixed(2),
+            "Z:",
+            THREE.MathUtils.radToDeg(draggingJoint.rotation.z).toFixed(2)
+        );
+    }
 
     draggingJoint = null;
     controls.enabled = true;
 
-    if (renderer.domElement.hasPointerCapture(event.pointerId)) {
+    if (
+        renderer.domElement.hasPointerCapture(event.pointerId)
+    ) {
         renderer.domElement.releasePointerCapture(event.pointerId);
     }
 }
 
-renderer.domElement.addEventListener('pointerup', stopJointDragging, true);
-renderer.domElement.addEventListener('pointercancel', stopJointDragging, true);
+// Register the stop-dragging handler.
+renderer.domElement.addEventListener(
+    'pointerup',
+    stopJointDragging
+);
+
+renderer.domElement.addEventListener(
+    'pointercancel',
+    stopJointDragging
+);
 
 // Restore camera controls if the browser loses focus.
 window.addEventListener('blur', () => {
     finishHandIKDrag();
+    finishLegIKDrag();
+    finishTorsoIKDrag();
     draggingJoint = null;
     controls.enabled = true;
 });
@@ -406,7 +439,7 @@ window.addEventListener('blur', () => {
 const textureLoader = new THREE.TextureLoader();
 const woodAlbedo = textureLoader.load('./wooden-artist-mannequin/source/model/textures/Wood_albedo.jpg');
 const woodAmbientOcclusion = textureLoader.load('./wooden-artist-mannequin/source/model/textures/Wood_AO.jpg');
-const woodNormal = textureLoader.load('./wooden-artist-mannequin/source/model/textures/Wood_normal.jpg');
+const woodNormal = textureLoader.load('./wooden-artist-mannequin/source/model/textures/Wood_normal.png');
 const woodRoughness = textureLoader.load('./wooden-artist-mannequin/source/model/textures/Wood_roughness.jpg');
 
 woodAlbedo.colorSpace = THREE.SRGBColorSpace;
@@ -581,7 +614,6 @@ loader.load(
         // SAVE ORIGINAL ELBOW ROTATIONS
         // Store the resting positions of both forearms.
         // These will be used to calculate realistic elbow limits.
-
         loadedModel.traverse((node) => {
 
             if (
@@ -589,23 +621,59 @@ loader.load(
                 node.name === "Forearm_ScreenRight"
             ) {
 
-                node.userData.restRotation =
-                    node.rotation.clone();
+                node.userData.restRotation = node.rotation.clone();
 
                 console.log(
                     "ELBOW REST ROTATION:",
                     node.name,
-                    "X:", THREE.MathUtils.radToDeg(node.rotation.x),
-                    "Y:", THREE.MathUtils.radToDeg(node.rotation.y),
-                    "Z:", THREE.MathUtils.radToDeg(node.rotation.z)
+                    node.rotation.toArray()
                 );
             }
 
         });
 
 
+       // SAVE ORIGINAL SHOULDER ROTATIONS
+        loadedModel.traverse((node) => {
+
+            if (
+                node.name === "UpperArm_ScreenLeft" ||
+                node.name === "UpperArm_ScreenRight"
+            ) {
+
+                node.userData.restRotation = node.rotation.clone();
+
+                console.log(
+                    "SHOULDER REST ROTATION:",
+                    node.name,
+                    node.rotation.toArray()
+                );
+            }
+
+        });
+
+
+        // SAVE ORIGINAL KNEE ROTATIONS
+        loadedModel.traverse((node) => {
+
+            if (
+                node.name === "Shin_ScreenLeft" ||
+                node.name === "Shin_ScreenRight"
+            ) {
+
+                node.userData.restRotation = node.rotation.clone();
+
+                console.log(
+                    "KNEE REST ROTATION:",
+                    node.name,
+                    node.rotation.toArray()
+                );
+            }
+
+        });
+
 // This code will help us check the mannequin's body parts and joints
-console.log("Mannequin model structure:");
+    console.log("Mannequin model structure:");
 
         loadedModel.traverse((node) => {
             // Display each body part and its parent group
@@ -651,6 +719,7 @@ console.log("Mannequin model structure:");
         refineLeftShoulderPivot(loadedModel);
 
         inspectMannequinRig(loadedModel);
+        inspectTorsoHierarchy();
         showShoulderPivotChecks();
 
 
@@ -843,6 +912,7 @@ function inspectMannequinRig(model) {
     });
 
     console.table(jointReport);
+    
 
     // Verify whether limb joints form usable FK parent-child chains.
     function isDescendant(child, parent) {
@@ -905,7 +975,7 @@ function inspectMannequinRig(model) {
 
 
 
- // HAND INVERSE KINEMATICS (IK)
+// HAND INVERSE KINEMATICS (IK)
 // First prototype for controlling the mannequin's hands.
 // This works with the existing rigid parent-child hierarchy we have already established.
 
@@ -920,7 +990,9 @@ function findIKHandSide(clickedObject) {
 
         const name = object.name;
 
-        if (/^(Hand_|Wrist_|Thumb_|Index_|Middle_|Ring_|Pinky_)/.test(name)) {
+        if (
+            /^(Shoulder_|UpperArm_|Elbow_|Forearm_|Wrist_|Hand_|Thumb_|Index_|Middle_|Ring_|Pinky_)/.test(name)
+        ) {
 
             const match = name.match(/_Screen(Left|Right)$/);
 
@@ -934,6 +1006,7 @@ function findIKHandSide(clickedObject) {
 
     return null;
 }
+
 
 // Begin dragging a hand using inverse kinematics.
 function beginHandIKDrag(event, clickedObject) {
@@ -985,11 +1058,27 @@ function beginHandIKDrag(event, clickedObject) {
 
     if (!hitPoint) return false;
 
+    const shoulderPosition = shoulder.getWorldPosition(
+    new THREE.Vector3()
+    );
+
+    const elbowPosition = elbow.getWorldPosition(
+        new THREE.Vector3()
+    );
+
+    const upperArmLength = shoulderPosition.distanceTo(elbowPosition);
+    const forearmLength = elbowPosition.distanceTo(wristPosition);
+
+    const maxReach = upperArmLength + forearmLength;
+
     activeHandIK = {
         shoulder,
         elbow,
         wrist,
         plane,
+        upperArmLength,
+        forearmLength,
+        maxReach,
         pointerId: event.pointerId,
         offset: wristPosition.clone().sub(hitPoint),
         lastPointerY: event.clientY,
@@ -1016,23 +1105,18 @@ function beginHandIKDrag(event, clickedObject) {
 // Adjust the shoulder and elbow toward a hand target.
 // Send the selected arm and target to the IK solver.
 function solveHandIK(target) {
-
     if (!activeHandIK) return;
 
-    const {
+    const { shoulder, elbow, wrist } = activeHandIK;
+
+    return solveHandIKRig({
+        model: loadedModel,
         shoulder,
         elbow,
-        wrist
-    } = activeHandIK;
-
-    solveHandIKRig({
-        model: loadedModel,
-        shoulder: shoulder,
-        elbow: elbow,
-        wrist: wrist,
-        target: target,
-        iterations: 15,
-        tolerance: 0.001,
+        wrist,
+        target,
+        iterations: 20,
+        tolerance: 0.005,
         constrainElbow: constrainElbowRotation
     });
 }
@@ -1071,11 +1155,27 @@ function updateHandIKDrag(event) {
 
     const target = hitPoint.add(activeHandIK.offset);
 
-    // Move the IK target toward or away from the camera.
     target.addScaledVector(
         activeHandIK.towardViewer,
         activeHandIK.depthOffset
     );
+
+    // Keep the hand target within the arm's reachable distance.
+    const shoulderPosition = activeHandIK.shoulder.getWorldPosition(
+        new THREE.Vector3()
+    );
+
+    const shoulderToTarget = target.clone().sub(shoulderPosition);
+
+    const maxReach = activeHandIK.maxReach * 0.99;
+
+    if (shoulderToTarget.length() > maxReach) {
+        shoulderToTarget.setLength(maxReach);
+
+        target.copy(
+            shoulderPosition.clone().add(shoulderToTarget)
+        );
+    }
 
     solveHandIK(target);
 }
@@ -1099,8 +1199,214 @@ function finishHandIKDrag(event) {
     return true;
 }
 
+// LEG INVERSE KINEMATICS (IK)
+let activeLegIK = null;
 
- // SHOULDER PIVOT INSPECTION
+// Identify which leg the user clicked.
+function findIKLegSide(clickedObject) {
+
+    let object = clickedObject;
+
+    while (object && object !== loadedModel) {
+
+        const name = object.name;
+
+        if (/^(Foot_|Ankle_|Shin_|Knee_|Thigh_|Hip_)/.test(name)) {
+
+            const match = name.match(/_Screen(Left|Right)$/);
+
+            if (match) return match[1];
+        }
+
+        object = object.parent;
+    }
+
+    return null;
+}
+
+
+// Begin dragging a foot using inverse kinematics.
+function beginLegIKDrag(event, clickedObject) {
+
+    const side = findIKLegSide(clickedObject);
+
+    if (!side) return false;
+
+    const thigh = loadedModel.getObjectByName(
+        `Thigh_Screen${side}`
+    );
+
+    const shin = loadedModel.getObjectByName(
+        `Shin_Screen${side}`
+    );
+
+    const ankle = loadedModel.getObjectByName(
+        `Ankle_Screen${side}`
+    );
+
+    if (!thigh || !shin || !ankle) {
+        console.warn("Missing leg IK joint:", side);
+        return false;
+    }
+
+    loadedModel.updateMatrixWorld(true);
+
+    const thighPosition = thigh.getWorldPosition(
+        new THREE.Vector3()
+    );
+
+    const shinPosition = shin.getWorldPosition(
+        new THREE.Vector3()
+    );
+
+    const anklePosition = ankle.getWorldPosition(
+        new THREE.Vector3()
+    );
+
+    const upperLegLength = thighPosition.distanceTo(shinPosition);
+    const lowerLegLength = shinPosition.distanceTo(anklePosition);
+
+    const maxReach = upperLegLength + lowerLegLength;
+    const minReach = Math.abs(upperLegLength - lowerLegLength);
+
+    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+        camera.getWorldDirection(new THREE.Vector3()),
+        anklePosition
+    );
+
+    const rect = renderer.domElement.getBoundingClientRect();
+
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+
+    const hitPoint = raycaster.ray.intersectPlane(
+        plane,
+        new THREE.Vector3()
+    );
+
+    if (!hitPoint) return false;
+
+    activeLegIK = {
+        side,
+        thigh,
+        shin,
+        ankle,
+        plane,
+        upperLegLength,
+        lowerLegLength,
+        maxReach,
+        minReach,
+        pointerId: event.pointerId,
+        offset: anklePosition.clone().sub(hitPoint)
+    };
+
+    controls.enabled = false;
+
+    renderer.domElement.setPointerCapture(event.pointerId);
+
+    console.log("Started leg IK:", side);
+
+    event.preventDefault();
+
+    return true;
+}
+
+
+// Solve the leg chain.
+function solveLegIK(target) {
+
+    if (!activeLegIK) return;
+
+    const { thigh, shin, ankle } = activeLegIK;
+
+    return solveIKChain({
+        model: loadedModel,
+
+        // Start at the knee, then rotate the hip.
+        joints: [shin, thigh],
+
+        // The ankle is the end effector.
+        endEffector: ankle,
+
+        target,
+
+        iterations: 25,
+        tolerance: 0.01,
+
+        // Apply the knee's Z-axis bending limits.
+        constrainJoint: constrainKneeRotation
+    });
+}
+
+
+// Update the foot target while dragging.
+function updateLegIKDrag(event) {
+
+    if (!activeLegIK) return;
+
+    if (event.pointerId !== activeLegIK.pointerId) return;
+
+    const rect = renderer.domElement.getBoundingClientRect();
+
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+
+    const hitPoint = raycaster.ray.intersectPlane(
+        activeLegIK.plane,
+        new THREE.Vector3()
+    );
+
+    if (!hitPoint) return;
+
+    const target = hitPoint.add(activeLegIK.offset);
+
+    // Keep the ankle target within the leg's reachable distance.
+    const hipPosition = activeLegIK.thigh.getWorldPosition(
+        new THREE.Vector3()
+    );
+
+    const hipToTarget = target.clone().sub(hipPosition);
+
+    const maxReach = activeLegIK.maxReach * 0.99;
+    const minReach = activeLegIK.minReach * 1.01;
+
+    if (hipToTarget.length() > maxReach) {
+        hipToTarget.setLength(maxReach);
+    } else if (hipToTarget.length() < minReach) {
+        hipToTarget.setLength(minReach);
+    }
+
+    target.copy(hipPosition).add(hipToTarget);
+
+    solveLegIK(target);
+}
+
+
+// Finish leg IK dragging.
+function finishLegIKDrag(event) {
+
+    if (!activeLegIK) return false;
+
+    const pointerId = activeLegIK.pointerId;
+
+    activeLegIK = null;
+
+    controls.enabled = true;
+
+    if (renderer.domElement.hasPointerCapture(pointerId)) {
+        renderer.domElement.releasePointerCapture(pointerId);
+    }
+
+    console.log("Finished leg IK");
+
+    return true;
+}
+
+// SHOULDER PIVOT INSPECTION
 // Display the shoulder centers and upper-arm rotation pivots.
 // This helps identify why the arms appear disconnected.
 
@@ -1176,8 +1482,254 @@ function showShoulderPivotChecks() {
     });
 }
 
+let activeTorsoIK = null;
 
- // SHOULDER PIVOT ALIGNMENT
+// Begin dragging the head using torso inverse kinematics.
+function beginTorsoIKDrag(event, clickedObject) {
+
+    const head = loadedModel.getObjectByName("Head");
+
+    // Accept the head itself or a child mesh belonging to it.
+    let current = clickedObject;
+    let clickedHead = false;
+
+    while (current && current !== loadedModel) {
+        if (current === head) {
+            clickedHead = true;
+            break;
+        }
+
+        current = current.parent;
+    }
+
+    if (!head || !clickedHead) return false;
+
+    const waistJoint = loadedModel.getObjectByName("Waist_Joint");
+    const torso = loadedModel.getObjectByName("Torso");
+    const neck = loadedModel.getObjectByName("Neck");
+
+    if (!waistJoint || !torso || !neck) {
+        console.warn("Missing torso IK joint.");
+        return false;
+    }
+
+    loadedModel.updateMatrixWorld(true);
+
+    console.log("TORSO IK STARTING ROTATIONS");
+
+    console.table([
+        loadedModel.getObjectByName("Waist_Joint"),
+        loadedModel.getObjectByName("Torso"),
+        loadedModel.getObjectByName("Neck")
+    ].map(joint => ({
+        joint: joint.name,
+        x: THREE.MathUtils.radToDeg(joint.rotation.x).toFixed(1),
+        y: THREE.MathUtils.radToDeg(joint.rotation.y).toFixed(1),
+        z: THREE.MathUtils.radToDeg(joint.rotation.z).toFixed(1)
+    })));
+
+    const headPosition = head.getWorldPosition(
+        new THREE.Vector3()
+    );
+
+    // Keep mouse movement in a camera-facing plane.
+    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+        camera.getWorldDirection(new THREE.Vector3()),
+        headPosition
+    );
+
+    const rect = renderer.domElement.getBoundingClientRect();
+
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+
+    const hitPoint = raycaster.ray.intersectPlane(
+        plane,
+        new THREE.Vector3()
+    );
+
+    if (!hitPoint) return false;
+
+    activeTorsoIK = {
+        waistJoint,
+        torso,
+        neck,
+        head,
+        plane,
+        pointerId: event.pointerId,
+        offset: headPosition.clone().sub(hitPoint),
+        lastPointerY: event.clientY,
+        depthOffset: 0,
+        towardViewer: camera.getWorldDirection(
+            new THREE.Vector3()
+        ).negate(),
+        depthScale: Math.max(
+            0.00001,
+            new THREE.Box3()
+                .setFromObject(loadedModel)
+                .getSize(new THREE.Vector3()).y * 0.002
+        )
+    };
+
+    controls.enabled = false;
+
+    renderer.domElement.setPointerCapture(event.pointerId);
+
+    console.log("Started torso IK");
+
+    event.preventDefault();
+
+    return true;
+}
+
+
+// Solve torso IK by moving the head toward the target.
+function solveTorsoIK(target) {
+
+    if (!activeTorsoIK) return false;
+
+    const { waistJoint, torso, neck, head } = activeTorsoIK;
+
+    return solveIKChain({
+        model: loadedModel,
+
+        // CCD order: head backward toward the waist.
+        joints: [torso, waistJoint],
+
+        endEffector: head,
+        target,
+
+        iterations: 8,
+        tolerance: 0.01,
+        maxStepDegrees: 4
+    });
+}
+
+
+// Update the head target while dragging.
+function updateTorsoIKDrag(event) {
+
+    if (!activeTorsoIK) return;
+
+    if (event.pointerId !== activeTorsoIK.pointerId) return;
+
+    // Holding Alt controls head depth.
+    if (event.altKey) {
+        const deltaY =
+            activeTorsoIK.lastPointerY - event.clientY;
+
+        activeTorsoIK.depthOffset +=
+            deltaY * activeTorsoIK.depthScale;
+    }
+
+    activeTorsoIK.lastPointerY = event.clientY;
+
+    const rect = renderer.domElement.getBoundingClientRect();
+
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+
+    const hitPoint = raycaster.ray.intersectPlane(
+        activeTorsoIK.plane,
+        new THREE.Vector3()
+    );
+
+    if (!hitPoint) return;
+
+    const target = hitPoint.add(activeTorsoIK.offset);
+
+    target.addScaledVector(
+        activeTorsoIK.towardViewer,
+        activeTorsoIK.depthOffset
+    );
+
+    solveTorsoIK(target);
+}
+
+
+// Finish torso IK dragging.
+function finishTorsoIKDrag(event) {
+
+    if (!activeTorsoIK) return false;
+
+    if (
+        event &&
+        event.pointerId !== activeTorsoIK.pointerId
+    ) {
+        return false;
+    }
+
+    // Capture joint rotations before clearing the IK state.
+    const rotationReport = [
+        activeTorsoIK.waistJoint,
+        activeTorsoIK.torso,
+        activeTorsoIK.neck
+    ].map(joint => ({
+        joint: joint.name,
+        rotationX: THREE.MathUtils.radToDeg(
+            joint.rotation.x
+        ).toFixed(1),
+        rotationY: THREE.MathUtils.radToDeg(
+            joint.rotation.y
+        ).toFixed(1),
+        rotationZ: THREE.MathUtils.radToDeg(
+            joint.rotation.z
+        ).toFixed(1)
+    }));
+
+    console.table(rotationReport);
+
+    const pointerId = activeTorsoIK.pointerId;
+
+    activeTorsoIK = null;
+    controls.enabled = true;
+
+    if (renderer.domElement.hasPointerCapture(pointerId)) {
+        renderer.domElement.releasePointerCapture(pointerId);
+    }
+
+    console.log("Finished torso IK");
+
+    return true;
+}
+
+function inspectTorsoHierarchy() {
+
+    const names = [
+        "Waist_Joint",
+        "Torso",
+        "Neck",
+        "Head"
+    ];
+
+    const results = names.map(name => {
+
+        const joint = loadedModel.getObjectByName(name);
+
+        return {
+            joint: name,
+            found: !!joint,
+            type: joint?.type ?? "Missing",
+            parent: joint?.parent?.name ?? "None",
+            position: joint
+                ? joint.getWorldPosition(new THREE.Vector3())
+                    .toArray()
+                    .map(value => value.toFixed(3))
+                    .join(", ")
+                : "N/A"
+        };
+    });
+
+    console.table(results);
+}
+
+
+
+// SHOULDER PIVOT ALIGNMENT
 // Align upper-arm rotation pivots with the shoulder joints.
 // Preserve visible geometry and child joint positions.
 
@@ -1401,50 +1953,112 @@ function refineLeftShoulderPivot(model) {
     console.log("Left shoulder pivot refinement complete.");
 }
 
-
-
- // REALISTIC ELBOW JOINT LIMITATIONS
+// REALISTIC ELBOW JOINT LIMITATIONS
 // Prevent the forearms from bending backward or twisting unnaturally.
 // These limits are measured relative to the mannequin's resting pose.
 
+// LIMIT ELBOW ROTATION
 function constrainElbowRotation(joint) {
 
     if (
         joint.name !== "Forearm_ScreenLeft" &&
         joint.name !== "Forearm_ScreenRight"
-    ) {
-        return;
-    }
+    ) return;
 
     const rest = joint.userData.restRotation;
-
     if (!rest) return;
 
-    // Maximum elbow flexion: 145 degrees.
     const maxBend = THREE.MathUtils.degToRad(145);
-
-    // Small tolerance for sideways rotation and twisting.
     const maxSideways = THREE.MathUtils.degToRad(5);
     const maxTwist = THREE.MathUtils.degToRad(5);
 
-    // Negative X bends the elbow forward on both arms.
     joint.rotation.x = THREE.MathUtils.clamp(
         joint.rotation.x,
         rest.x - maxBend,
         rest.x
     );
 
-    // Restrict twisting.
     joint.rotation.y = THREE.MathUtils.clamp(
         joint.rotation.y,
         rest.y - maxTwist,
         rest.y + maxTwist
     );
 
-    // Restrict sideways bending.
     joint.rotation.z = THREE.MathUtils.clamp(
         joint.rotation.z,
         rest.z - maxSideways,
         rest.z + maxSideways
     );
+}
+
+// LIMIT SHOULDER ROTATION
+function constrainShoulderRotation(joint) {
+    if (
+        joint.name !== "UpperArm_ScreenLeft" &&
+        joint.name !== "UpperArm_ScreenRight"
+    ) return;
+
+    const rest = joint.userData.restRotation;
+    if (!rest) return;
+
+    const maxForwardBackward = THREE.MathUtils.degToRad(90);
+    const maxSideways = THREE.MathUtils.degToRad(90);
+    const maxTwist = THREE.MathUtils.degToRad(45);
+
+    joint.rotation.x = THREE.MathUtils.clamp(
+        joint.rotation.x,
+        rest.x - maxForwardBackward,
+        rest.x + maxForwardBackward
+    );
+
+    joint.rotation.y = THREE.MathUtils.clamp(
+        joint.rotation.y,
+        rest.y - maxTwist,
+        rest.y + maxTwist
+    );
+
+    joint.rotation.z = THREE.MathUtils.clamp(
+        joint.rotation.z,
+        rest.z - maxSideways,
+        rest.z + maxSideways
+    );
+}
+
+// LIMIT KNEE ROTATION
+// The knee bends around the Z axis.
+// Left and right knees bend in opposite directions.
+
+function constrainKneeRotation(joint) {
+
+    if (
+        joint.name !== "Shin_ScreenLeft" &&
+        joint.name !== "Shin_ScreenRight"
+    ) return;
+
+    const rest = joint.userData.restRotation;
+    if (!rest) return;
+
+    const maxBend = THREE.MathUtils.degToRad(130);
+
+    // Prevent unwanted sideways and twisting movement.
+    joint.rotation.x = rest.x;
+    joint.rotation.y = rest.y;
+
+    if (joint.name === "Shin_ScreenLeft") {
+
+        joint.rotation.z = THREE.MathUtils.clamp(
+            joint.rotation.z,
+            rest.z - maxBend,
+            rest.z
+        );
+
+    } else {
+
+        joint.rotation.z = THREE.MathUtils.clamp(
+            joint.rotation.z,
+            rest.z,
+            rest.z + maxBend
+        );
+
+    }
 }

@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 
@@ -62,12 +61,29 @@
 
                 </div>
 
-                <div id="tool-buttons">
-                    <!-- Here I am keeping only the mannequin controls underneath the 3D model -->
-                    <button type="button" id="rotate-button">Rotate</button>
-                    <button type="button" id="bend-button">Bend</button>
-                    <button type="button" id="tilt-button">Tilt</button>
-                </div>
+                <button
+                    type="button"
+                    id="rotate-button"
+                    class="active"
+                    aria-pressed="true">
+                    Rotate
+                </button>
+
+                <button
+                    type="button"
+                    id="bend-button"
+                    aria-pressed="false">
+                    Bend
+                </button>
+
+                <button
+                    type="button"
+                    id="tilt-button"
+                    aria-pressed="false">
+                    Tilt
+                </button>
+
+            </div>
 
             </section>
 
