@@ -294,18 +294,18 @@
 
             <li>
                 Information reasonably sufficient to contact you, such as
-                an address, telephone number, and email address.
+                an address, telephone number, and email.
             </li>
 
             <li>
-                A statement that you have a good-faith belief that use of the
-                material in the manner complained of is not authorized by
-                the copyright owner, its agent, or the law.
+                A statement that you have a good-faith belief that use of
+                the material in the manner complained of is not authorized
+                by the copyright owner, its agent, or the law.
             </li>
 
             <li>
-                A statement that the information in the notice is accurate
-                and, under penalty of perjury, that you are authorized to
+                A statement that the information in the notice is accurate,
+                and under penalty of perjury, that you are authorized to
                 act on behalf of the owner of an exclusive right that is
                 allegedly infringed.
             </li>
@@ -328,9 +328,6 @@
     <!-- Load the main website tabs -->
     <script src="scripts/view/tabs.js"></script>
 
-    <!-- Receive pose JSON from Rosie's sketch upload -->
-    <script src="scripts/view/sketch-upload-bridge.js"></script>
-
     <!-- Handle mannequin controls -->
     <script src="scripts/view/mannequin-controls.js"></script>
 
@@ -338,8 +335,14 @@
     <script src="scripts/model/pose-matcher.js"></script>
     <script src="scripts/view/ref-gallery.js"></script>
 
-    <!-- Connect pose information to the reference image search -->
+    <!-- Initialize the shared pose variable FIRST -->
     <script src="scripts/controller/pose-controller.js"></script>
+
+    <!-- INTEGRATION FIX:
+         Receive Rosie's sketch pose after the pose controller is loaded -->
+    <script src="scripts/view/sketch-upload-bridge.js"></script>
+
+    <!-- Search now has access to the shared pose -->
     <script src="scripts/controller/search-controller.js"></script>
 
 </body>
