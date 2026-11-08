@@ -2,3 +2,11 @@ __pycache__/
 *.pyc
 host.zip
 assets/metadata/images-metadata-old.json
+
+
+# Reference photos live on Cloudinary, not in git
+assets/image_set/0*.jpg
+assets/image_set/dataset.py
+
+# Local backup copies of the metadata (all hyphenated versions)
+assets/metadata/images-metadata-*.json
