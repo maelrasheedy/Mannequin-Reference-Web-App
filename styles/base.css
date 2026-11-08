@@ -314,3 +314,57 @@ body {
 .member h3 {
     margin-top: 0;
 }
+
+
+
+/* BEGINNING OF REFERENCE IMAGE GALLERY */
+#gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--space-3);
+    align-items: start;
+}
+
+/* the "no results" / placeholder message spans the whole row */
+#gallery-grid > p {
+    grid-column: 1 / -1;
+}
+
+.gallery-item {
+    margin: 0;
+}
+
+.gallery-thumb {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.gallery-thumb:focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+}
+
+.gallery-thumb img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+}
+
+.gallery-item figcaption {
+    margin-top: var(--space-1);
+    font-size: var(--font-size-small);
+    color: var(--color-text-muted);
+}
+
+#image-viewer img {
+    max-width: 90vw;
+    max-height: 80vh;
+}
+/* END OF REFERENCE IMAGE GALLERY */

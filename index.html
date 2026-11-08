@@ -226,12 +226,17 @@
         <!--[TBD: name, mailing address, and email for copyright notices]-->
     </section>
 
+
     <!-- where the javascript files will remain -->
     <script src="scripts/view/tabs.js"></script>
     <script src="scripts/view/mannequin-controls.js"></script>
 
+    <!--order of these js files are important-->
+    <script src="scripts/model/pose-matcher.js"></script>
+    <script src="scripts/view/ref-gallery.js"></script>
     <!--this file references the pose controller to determine mannequin pose (maryam)-->
     <script src="scripts/controller/pose-controller.js"></script>
+    <script src="scripts/controller/search-controller.js"></script>
 
 </body> 
 </html>
