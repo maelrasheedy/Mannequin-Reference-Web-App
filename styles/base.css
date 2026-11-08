@@ -60,7 +60,10 @@ button{
 	cursor: pointer;
 }
 
-
+/* spacing between the search and reset buttons */
+#search-results button + button {
+    margin-left: var(--space-2);
+}
 
 
 button:hover:not(:disabled) {

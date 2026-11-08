@@ -71,6 +71,49 @@ function sendPose() {
     );
 }// end rig tracker functions
 
+
+// reset pose function (maryam)
+const restPose = new Map(); // every node -> its starting transform
+
+function captureRestPose() {
+    restPose.clear();
+    loadedModel.traverse((node) => {
+        restPose.set(node, {
+            position: node.position.clone(),
+            quaternion: node.quaternion.clone(),
+            scale: node.scale.clone(),
+        });
+    });
+}
+
+function resetPose() {
+    if (!loadedModel || restPose.size === 0) return;
+
+    // Stop anything the user was in the middle of.
+    draggingJoint = null;
+    activeHandIK = null;
+    selectedArm = null;
+    controls.enabled = true;
+
+    for (const [node, saved] of restPose) {
+        node.position.copy(saved.position);
+        node.quaternion.copy(saved.quaternion);
+        node.scale.copy(saved.scale);
+    }
+    loadedModel.updateMatrixWorld(true);
+    sendPose();
+}
+
+// The main page asks for a reset with this message.
+window.addEventListener("message", (event) => {
+    if (event.source !== window.parent) return;
+    if (event.origin !== window.location.origin) return;
+    if (!event.data || event.data.type !== "MANNEQUIN_RESET_POSE") return;
+    resetPose();
+});
+//end reset pose functions (maryam)
+
+
 // Raycasting lets us detect which mannequin body part the user clicks.
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -748,6 +791,7 @@ console.groupEnd();
         console.log('Model loaded cleanly! Dimensions computed:', size);
         
         rigTracker = createRigTracker(loadedModel);// added by maryam to create rig tracker for mannequin pose detection
+        captureRestPose(); // added by maryam to capture the rest pose BEFORE the user moves anything
         sendPose(); // added by maryam to send the initial pose to the parent window
     },
     (xhr) => { console.log((xhr.loaded / xhr.total * 100) + '% loaded'); },

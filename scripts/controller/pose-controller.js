@@ -8,4 +8,16 @@ window.addEventListener("message", (event) => {
 
     currentUserPose = event.data.pose;
     console.log("User pose updated:", currentUserPose);
-}); 
+});
+
+// Reset Pose button: ask the mannequin iframe to return to its standing pose.
+const resetPoseButton = document.getElementById("reset-pose-button");
+if (resetPoseButton) {
+    resetPoseButton.addEventListener("click", () => {
+        const frame = document.getElementById("mannequin-frame");
+        frame.contentWindow.postMessage(
+            { type: "MANNEQUIN_RESET_POSE" },
+            window.location.origin
+        );
+    });
+}
