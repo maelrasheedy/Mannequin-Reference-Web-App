@@ -55,12 +55,9 @@ main {
     text-align: center;
 }
 
-/* Keep the file input centered */
+/* Hide the file input because clicking the upload box opens the file picker */
 #sketchUpload {
-    display: block;
-    margin: 8px auto;
-    padding: 5px;
-    max-width: 100%;
+    display: none;
 }
 
 /* Set up the area where the selected image appears */
@@ -164,6 +161,17 @@ main:not(.has-image) #previewContainer {
     to {
         transform: rotate(360deg);
     }
+}
+
+main {
+    cursor: pointer;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+    /* Highlight the upload are when the mouse hovers over it */
+main:hover {
+    background-color: rgba(96, 165, 250, 0.08);
+    box-shadow: inset 0 0 0 2px rgba(96, 165, 250, 0.35);
 }
 
 /* Highlight the upload area when a file is dragged over it */

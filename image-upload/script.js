@@ -26,6 +26,20 @@ let confirmedPoseJson = null;
 let previewURL = null;
 let detectionRunId = 0;
 
+// Track when an image is loading so users cannot interrupt the process
+let isUploadLoading = false;
+
+// Lock or unlock the upload controls while an image is processing
+function setUploadLoading(loading) {
+    isUploadLoading = loading;
+
+    sketchUpload.disabled = loading;
+    removeImage.disabled = loading;
+    changeImage.disabled = loading;
+
+    uploadArea.setAttribute("aria-busy", String(loading));
+}
+
 // Hide the preview buttons until an image is selected
 imagePreview.hidden = true;
 removeImage.hidden = true;
@@ -173,6 +187,7 @@ sketchUpload.addEventListener("change", function () {
     }
 
     // Create a temporary URL to preview the selected image
+    setUploadLoading(true);
     const imageURL = URL.createObjectURL(file);
     previewURL = imageURL;
 
@@ -183,6 +198,7 @@ sketchUpload.addEventListener("change", function () {
         if (previewURL !== imageURL) {
             return;
         }
+        setUploadLoading(false);
 
         imagePreview.onload = null;
         imagePreview.onerror = null;
@@ -204,6 +220,7 @@ sketchUpload.addEventListener("change", function () {
         if (previewURL !== imageURL) {
             return;
         }
+        setUploadLoading(false);
 
         clearPreview();
 
@@ -240,6 +257,20 @@ removeImage.addEventListener("click", function () {
     console.log("Pose JSON after removal:", activePoseJson);
 });
 
+// Open the file picker when the empty upload area is clicked
+uploadArea.addEventListener("click", function (event) {
+    // Only open the picker when no image is displayed
+    if (uploadArea.classList.contains("has-image")) {
+        return;
+    }
+
+    // Don't interfere with buttons, dialogs, or the file input itself
+    if (event.target.closest("button, dialog, input, a")) {
+        return;
+    }
+
+    sketchUpload.click();
+});
 
 // Highlight the upload area when an image is dragged over it
 uploadArea.addEventListener("dragover", function (event) {
@@ -270,6 +301,11 @@ uploadArea.addEventListener("drop", function (event) {
     event.preventDefault();
     uploadArea.classList.remove("drag-over");
 
+        // Ignore new files while an image is loading
+    if (isUploadLoading) {
+        return;
+    }
+
     const droppedFiles = event.dataTransfer.files;
 
     if (droppedFiles.length !== 1) {
@@ -293,6 +329,9 @@ confirmUpload.addEventListener("click", async function () {
         return;
     }
 
+    // Lock the upload controls while we detect the pose
+    setUploadLoading(true);
+
     // Save the newly confirmed image and clear old pose data
     confirmedImageFile = file;
 
@@ -306,6 +345,9 @@ confirmUpload.addEventListener("click", async function () {
     console.log("Sketch pose cleared from main page message");
 
     changeImage.hidden = false;
+
+    //Lock the upload controls while we detect the pose
+    setUploadLoading(true);
 
     uploadMessage.textContent = "Detecting human pose...";
     uploadMessage.classList.add("loading");
@@ -415,9 +457,10 @@ confirmUpload.addEventListener("click", async function () {
             "Error: Pose detection could not start. Please try again.";
 
     } finally {
-        // Remove the loading spinner when detection finishes
-        if (isCurrentImage()) {
-            uploadMessage.classList.remove("loading");
+    // Unlock the upload controls when pose detection finishes
+    if (isCurrentImage()) {
+        uploadMessage.classList.remove("loading");
+        setUploadLoading(false);
         }
     }
 });
