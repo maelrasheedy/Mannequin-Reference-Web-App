@@ -8,11 +8,12 @@
     <link rel="stylesheet" href="./style.css">
     
     <script type="importmap">
-      {
-        "imports": {
-          "three": "./three.js"
-        }
+    {
+      "imports": {
+        "three": "./three.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
       }
+    }
     </script>
     
     <style>
@@ -45,7 +46,7 @@
         box-sizing: border-box;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
         backdrop-filter: blur(8px);
-        display: flex;
+        display: none;
         flex-direction: column;
         gap: 12px;
         z-index: 10;
@@ -115,7 +116,7 @@
         <button id="btn-tilt" class="btn-transform" disabled>Tilt</button>
       </div>
     </div>
-    <script type="module" src="./main.js"></script>
+    <script type="module" src="./main-glb.js"></script>
 
     <script type="module">
       const lblJointKey = document.getElementById('lbl-joint-key');
