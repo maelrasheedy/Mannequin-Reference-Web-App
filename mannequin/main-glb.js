@@ -3,7 +3,10 @@ import * as THREE from './three.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from './OrbitControls.js';
 
-// Set up the scene and camera for our mannequin.
+// Use the same pose format as our image upload and reference search
+import { poseFromLandmarks } from './pose-vector.js';
+
+// Set up the mannequin scene
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a1a1a);
 
@@ -20,7 +23,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
-// Use simple lighting so we can see the wooden model clearly.
+// Lighting
 scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
 const keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
@@ -35,7 +38,7 @@ const backLight = new THREE.DirectionalLight(0xffffff, 0.8);
 backLight.position.set(0, 5, -8);
 scene.add(backLight);
 
-// Let users rotate and zoom the camera.
+// Camera controls
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
@@ -55,8 +58,8 @@ let draggingPointerId = null;
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
-// These are starting movement limits in degrees from the resting pose.
-// We can adjust individual axes after testing the Blender model.
+// Starting movement limits in degrees from the original Blender pose.
+// We still need to test and adjust some directions for our model.
 const JOINT_LIMITS = {
     UpperArm: {
         x: [-120, 160],
@@ -110,7 +113,7 @@ const JOINT_LIMITS = {
     }
 };
 
-// Match a Blender object name to the limits for that body part.
+// Find the movement limits for a body part
 function getJointLimits(name) {
     if (/^(Index|Middle|Ring|Pinky|Thumb)_(Proximal|Middle|Distal)_/.test(name)) {
         return JOINT_LIMITS.Finger;
@@ -124,7 +127,7 @@ function getJointLimits(name) {
     return JOINT_LIMITS[jointType] || null;
 }
 
-// Save the starting rotations so the limits work with Blender's original pose.
+// Save the original rotations from Blender
 function saveRestRotations(model) {
     model.traverse((node) => {
         if (getJointLimits(node.name)) {
@@ -134,7 +137,7 @@ function saveRestRotations(model) {
     });
 }
 
-// Keep each joint inside the allowed movement range.
+// Prevent a joint from going outside its movement limits
 function constrainJointRotation(joint) {
     const limits = getJointLimits(joint.name);
     const rest = joint.userData.restRotation;
@@ -157,7 +160,7 @@ function constrainJointRotation(joint) {
     }
 }
 
-// Some Blender exports have an extra letter in the left shoulder's name.
+// Fix the shoulder name if Blender exported it incorrectly
 function fixShoulderName(model) {
     const incorrectName = model.getObjectByName("Shouldder_ScreenLeft");
 
@@ -186,7 +189,7 @@ function fixShoulderName(model) {
     }
 }
 
-// Keep the visible arm in place when correcting its rotation pivot.
+// Correct an arm pivot while keeping the visible mesh in place
 function moveArmPivot(model, arm, targetWorld) {
     if (!arm?.isMesh || !arm.geometry || !arm.parent || arm.isSkinnedMesh) {
         return;
@@ -197,7 +200,6 @@ function moveArmPivot(model, arm, targetWorld) {
     const localOffset = arm.worldToLocal(targetWorld.clone());
     const newParentPosition = arm.parent.worldToLocal(targetWorld.clone());
 
-    // Skip the correction if Blender already has the pivot in the right place.
     if (localOffset.length() < 0.0001) return;
 
     arm.geometry = arm.geometry.clone();
@@ -208,7 +210,6 @@ function moveArmPivot(model, arm, targetWorld) {
         -localOffset.z
     );
 
-    // Move the children back so elbows, wrists and hands do not jump.
     arm.children.forEach((child) => {
         child.position.sub(localOffset);
     });
@@ -217,7 +218,7 @@ function moveArmPivot(model, arm, targetWorld) {
     model.updateMatrixWorld(true);
 }
 
-// Check each shoulder separately instead of assuming both sides are identical.
+// Check the shoulder pivots
 function alignShoulderPivots(model) {
     model.updateMatrixWorld(true);
 
@@ -237,7 +238,6 @@ function alignShoulderPivots(model) {
 
         const currentPivot = upperArm.getWorldPosition(new THREE.Vector3());
 
-        // Only adjust pivots that are noticeably out of place.
         const modelHeight = new THREE.Box3()
             .setFromObject(model)
             .getSize(new THREE.Vector3()).y;
@@ -248,7 +248,225 @@ function alignShoulderPivots(model) {
     }
 }
 
-// Convert the pointer location to Three.js coordinates.
+
+// ============================================================
+// MANNEQUIN POSE JSON
+// Added to connect our Blender mannequin to reference searching
+// ============================================================
+
+// ScreenLeft is normally the person's anatomical right when
+// looking at the mannequin from the front.
+// We can swap these values if testing shows the sides are reversed.
+const ANATOMICAL_TO_SCREEN = {
+    left: "Right",
+    right: "Left"
+};
+
+let lastPoseWarning = "";
+let poseUpdateScheduled = false;
+
+// Find a mannequin object by its Blender name
+function findPosePart(name) {
+    return loadedModel?.getObjectByName(name) || null;
+}
+
+// Get a joint's rotation pivot in the mannequin's own coordinates
+function getJointPosition(name) {
+    const part = findPosePart(name);
+
+    if (!part) return null;
+
+    const worldPosition = part.getWorldPosition(new THREE.Vector3());
+
+    return loadedModel.worldToLocal(worldPosition);
+}
+
+// Get the center of a body part's visible geometry
+function getPartCenter(name) {
+    const part = findPosePart(name);
+
+    if (!part) return null;
+
+    const bounds = new THREE.Box3().setFromObject(part);
+
+    if (bounds.isEmpty()) {
+        return getJointPosition(name);
+    }
+
+    const center = bounds.getCenter(new THREE.Vector3());
+
+    return loadedModel.worldToLocal(center);
+}
+
+// Estimate the end of a hand or foot from its visible geometry.
+// These are starting measurements until we verify the exact
+// fingertip and toe locations in Blender.
+function getPartTip(name, anchorName) {
+    const part = findPosePart(name);
+    const anchor = findPosePart(anchorName);
+
+    if (!part || !anchor) return null;
+
+    const bounds = new THREE.Box3().setFromObject(part);
+
+    if (bounds.isEmpty()) {
+        return getJointPosition(name);
+    }
+
+    const anchorWorld = anchor.getWorldPosition(new THREE.Vector3());
+
+    let farthestPoint = null;
+    let farthestDistance = -1;
+
+    // Check the bounding box corners for the point farthest
+    // from the wrist or ankle.
+    for (const x of [bounds.min.x, bounds.max.x]) {
+        for (const y of [bounds.min.y, bounds.max.y]) {
+            for (const z of [bounds.min.z, bounds.max.z]) {
+                const point = new THREE.Vector3(x, y, z);
+                const distance = point.distanceToSquared(anchorWorld);
+
+                if (distance > farthestDistance) {
+                    farthestDistance = distance;
+                    farthestPoint = point;
+                }
+            }
+        }
+    }
+
+    return farthestPoint
+        ? loadedModel.worldToLocal(farthestPoint)
+        : null;
+}
+
+// Read the points needed by our shared pose-vector.js file
+function getMannequinLandmarks() {
+    if (!loadedModel) return null;
+
+    loadedModel.updateMatrixWorld(true);
+
+    const landmarks = {
+        head_center: getPartCenter("Head")
+    };
+
+    for (const [side, screenSide] of Object.entries(ANATOMICAL_TO_SCREEN)) {
+        // The rotation origins represent the main joint positions.
+        landmarks[`${side}_shoulder`] =
+            getJointPosition(`UpperArm_Screen${screenSide}`);
+
+        landmarks[`${side}_elbow`] =
+            getJointPosition(`Forearm_Screen${screenSide}`);
+
+        landmarks[`${side}_wrist`] =
+            getJointPosition(`Wrist_Screen${screenSide}`);
+
+        landmarks[`${side}_hip`] =
+            getJointPosition(`Thigh_Screen${screenSide}`);
+
+        landmarks[`${side}_knee`] =
+            getJointPosition(`Shin_Screen${screenSide}`);
+
+        landmarks[`${side}_ankle`] =
+            getJointPosition(`Ankle_Screen${screenSide}`);
+
+        // Hand tips and toes are estimated from the mesh bounds.
+        landmarks[`${side}_hand_tip`] = getPartTip(
+            `Hand_Screen${screenSide}`,
+            `Wrist_Screen${screenSide}`
+        );
+
+        landmarks[`${side}_toe`] = getPartTip(
+            `Foot_Screen${screenSide}`,
+            `Ankle_Screen${screenSide}`
+        );
+    }
+
+    return landmarks;
+}
+
+// Generate the 14-part pose JSON and send it to the main website
+function sendMannequinPose() {
+    if (!loadedModel) return;
+
+    const landmarks = getMannequinLandmarks();
+
+    if (!landmarks) return;
+
+    // Do not send an incomplete pose if a Blender part is missing.
+    const missing = Object.entries(landmarks)
+        .filter(([, position]) => !position)
+        .map(([name]) => name);
+
+    if (missing.length > 0) {
+        const warning = `Missing mannequin pose points: ${missing.join(", ")}`;
+
+        if (warning !== lastPoseWarning) {
+            console.warn(warning);
+            lastPoseWarning = warning;
+        }
+
+        return;
+    }
+
+    try {
+        const pose = poseFromLandmarks(landmarks);
+
+        // Our reference matching format requires all 14 parts.
+        if (
+            !pose ||
+            !Array.isArray(pose.pose_vector) ||
+            pose.pose_vector.length !== 14
+        ) {
+            const warning = "Mannequin pose JSON is incomplete.";
+
+            if (warning !== lastPoseWarning) {
+                console.warn(warning, pose);
+                lastPoseWarning = warning;
+            }
+
+            return;
+        }
+
+        lastPoseWarning = "";
+
+        // The mannequin and sketch upload are separate input methods.
+        // Each sends its own pose information to the main website.
+        if (window.parent !== window) {
+            window.parent.postMessage(
+                {
+                    type: "MANNEQUIN_POSE_CHANGED",
+                    pose: pose
+                },
+                window.location.origin
+            );
+        }
+
+        console.log("Mannequin pose JSON updated:", pose);
+
+    } catch (error) {
+        console.error("Could not calculate mannequin pose JSON:", error);
+    }
+}
+
+// Only calculate one pose update per frame while someone drags.
+// This keeps the movement smoother.
+function scheduleMannequinPoseUpdate() {
+    if (poseUpdateScheduled || !loadedModel) return;
+
+    poseUpdateScheduled = true;
+
+    requestAnimationFrame(() => {
+        poseUpdateScheduled = false;
+        sendMannequinPose();
+    });
+}
+
+
+// ============================================================
+// MOUSE AND MANNEQUIN CONTROLS
+// ============================================================
+
+// Convert the mouse position to Three.js coordinates
 function updateMousePosition(event) {
     const rect = renderer.domElement.getBoundingClientRect();
 
@@ -256,7 +474,7 @@ function updateMousePosition(event) {
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 }
 
-// Find the visible part of the mannequin under the pointer.
+// Find the visible mannequin part under the mouse
 function getClickedPart(event) {
     if (!loadedModel) return null;
 
@@ -273,7 +491,7 @@ function getClickedPart(event) {
     return hit ? hit.object : null;
 }
 
-// Find the limb that should move when someone clicks a body part.
+// Find which joint should move when a part is selected
 function findMovableJoint(clickedObject) {
     let object = clickedObject;
 
@@ -311,7 +529,7 @@ function findMovableJoint(clickedObject) {
     return null;
 }
 
-// Find which hand is selected for inverse kinematics.
+// Find the hand selected for inverse kinematics
 function findIKHandSide(clickedObject) {
     let object = clickedObject;
 
@@ -328,7 +546,7 @@ function findIKHandSide(clickedObject) {
     return null;
 }
 
-// Start moving a hand while the shoulder and elbow follow it.
+// Start hand IK dragging
 function beginHandIKDrag(event, clickedObject) {
     const side = findIKHandSide(clickedObject);
 
@@ -340,7 +558,6 @@ function beginHandIKDrag(event, clickedObject) {
 
     if (!shoulder || !elbow || !wrist) return false;
 
-    // IK needs a connected arm hierarchy to move properly.
     if (!isDescendant(elbow, shoulder) || !isDescendant(wrist, elbow)) {
         console.warn("The arm joints are not connected for IK:", side);
         return false;
@@ -390,7 +607,7 @@ function beginHandIKDrag(event, clickedObject) {
     return true;
 }
 
-// Check that a joint belongs to the correct parent chain.
+// Check whether a joint belongs to the correct parent chain
 function isDescendant(child, parent) {
     let object = child.parent;
 
@@ -402,7 +619,7 @@ function isDescendant(child, parent) {
     return false;
 }
 
-// Use CCD to move the hand toward the pointer target.
+// Move the hand toward the pointer using CCD
 function solveHandIK(target) {
     if (!activeHandIK || !loadedModel) return;
 
@@ -445,7 +662,6 @@ function solveHandIK(target) {
 
             joint.quaternion.premultiply(localRotation);
 
-            // Apply the same limits to IK as normal dragging.
             constrainJointRotation(joint);
         }
 
@@ -458,7 +674,7 @@ function solveHandIK(target) {
     }
 }
 
-// Update the hand target during IK dragging.
+// Update hand IK while dragging
 function updateHandIKDrag(event) {
     if (!activeHandIK || event.pointerId !== activeHandIK.pointerId) {
         return;
@@ -489,9 +705,12 @@ function updateHandIKDrag(event) {
     );
 
     solveHandIK(target);
+
+    // Let the main website know the hand pose changed
+    scheduleMannequinPoseUpdate();
 }
 
-// Stop hand IK dragging and allow camera movement again.
+// Stop hand IK and restore camera controls
 function finishHandIKDrag() {
     if (!activeHandIK) return false;
 
@@ -506,14 +725,13 @@ function finishHandIKDrag() {
     return true;
 }
 
-// Start posing a joint when the user clicks and drags it.
+// Select a mannequin joint
 renderer.domElement.addEventListener("pointerdown", (event) => {
     if (!loadedModel || event.button !== 0) return;
 
     const clickedPart = getClickedPart(event);
     if (!clickedPart) return;
 
-    // Shift and drag a hand to use IK.
     if (event.shiftKey && beginHandIKDrag(event, clickedPart)) {
         return;
     }
@@ -527,7 +745,6 @@ renderer.domElement.addEventListener("pointerdown", (event) => {
     previousMouseX = event.clientX;
     previousMouseY = event.clientY;
 
-    // Remember the arm for keyboard shortcuts too.
     if (joint.name.startsWith("UpperArm_")) {
         selectedArm = joint;
     }
@@ -538,7 +755,7 @@ renderer.domElement.addEventListener("pointerdown", (event) => {
     event.preventDefault();
 }, true);
 
-// Rotate joints with the mouse, but stop at their movement limits.
+// Rotate the selected joint with the mouse
 renderer.domElement.addEventListener("pointermove", (event) => {
     if (activeHandIK) {
         updateHandIKDrag(event);
@@ -560,9 +777,12 @@ renderer.domElement.addEventListener("pointermove", (event) => {
 
     previousMouseX = event.clientX;
     previousMouseY = event.clientY;
+
+    // Update the reference-search pose after moving a joint
+    scheduleMannequinPoseUpdate();
 }, true);
 
-// Stop posing and restore normal camera controls.
+// Stop joint dragging
 function stopJointDragging(event) {
     if (activeHandIK) {
         if (event.pointerId === activeHandIK.pointerId) {
@@ -587,7 +807,7 @@ function stopJointDragging(event) {
 renderer.domElement.addEventListener("pointerup", stopJointDragging, true);
 renderer.domElement.addEventListener("pointercancel", stopJointDragging, true);
 
-// Keep the arm keyboard shortcuts from our original prototype.
+// Keyboard shortcuts for moving the selected arm
 window.addEventListener("keydown", (event) => {
     if (!selectedArm) return;
 
@@ -608,10 +828,14 @@ window.addEventListener("keydown", (event) => {
     else return;
 
     constrainJointRotation(selectedArm);
+
+    // Send the new mannequin pose after keyboard movement
+    scheduleMannequinPoseUpdate();
+
     event.preventDefault();
 });
 
-// Reset dragging if the browser window loses focus.
+// Restore controls if the browser loses focus
 window.addEventListener("blur", () => {
     finishHandIKDrag();
     draggingJoint = null;
@@ -619,7 +843,7 @@ window.addEventListener("blur", () => {
     controls.enabled = true;
 });
 
-// Load the updated mannequin from Blender.
+// Load the Blender mannequin
 const loader = new GLTFLoader();
 
 loader.load(
@@ -627,9 +851,19 @@ loader.load(
     (gltf) => {
         loadedModel = gltf.scene;
 
+        // Print part names to help us check the Blender mapping
+        loadedModel.traverse((part) => {
+            if (
+                part.name &&
+                /upperarm|forearm|wrist|hand|thigh|shin|ankle|foot|head|neck/i.test(part.name)
+            ) {
+                console.log("Mannequin part:", part.name);
+            }
+        });
+
         fixShoulderName(loadedModel);
 
-        // Keep the wood materials exported from Blender.
+        // Keep the materials exported from Blender
         loadedModel.traverse((node) => {
             if (!node.isMesh) return;
 
@@ -645,20 +879,17 @@ loader.load(
             });
         });
 
-        // Center the mannequin in the viewer.
+        // Center the mannequin in its viewer
         const box = new THREE.Box3().setFromObject(loadedModel);
         const center = box.getCenter(new THREE.Vector3());
 
         loadedModel.position.sub(center);
         scene.add(loadedModel);
 
-        // Correct shoulder pivots only if they are out of place.
         alignShoulderPivots(loadedModel);
-
-        // Save the final resting pose after any pivot adjustments.
         saveRestRotations(loadedModel);
 
-        // Fit the entire mannequin inside the camera view.
+        // Fit the mannequin inside the camera view
         const modelBox = new THREE.Box3().setFromObject(loadedModel);
         const size = modelBox.getSize(new THREE.Vector3());
         const modelCenter = modelBox.getCenter(new THREE.Vector3());
@@ -686,6 +917,9 @@ loader.load(
         controls.update();
 
         console.log("Mannequin loaded successfully.");
+
+        // Generate the first pose JSON after the model loads
+        scheduleMannequinPoseUpdate();
     },
     undefined,
     (error) => {
@@ -693,13 +927,13 @@ loader.load(
     }
 );
 
-// Keep the viewer running and update camera movement smoothly.
+// Render the scene
 renderer.setAnimationLoop(() => {
     controls.update();
     renderer.render(scene, camera);
 });
 
-// Resize the canvas when the browser window changes size.
+// Resize the viewer with the browser window
 window.addEventListener("resize", () => {
     const width = window.innerWidth;
     const height = window.innerHeight;
