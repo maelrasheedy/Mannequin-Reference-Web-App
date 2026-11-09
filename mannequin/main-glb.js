@@ -2,8 +2,11 @@ import * as THREE from './three.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from './OrbitControls.js';
 
-// Use the same pose format as our image upload and reference search
+// Shared pose format for mannequin, sketch upload, and image search
 import { poseFromLandmarks } from './pose-vector.js';
+
+// Anthony's inverse kinematics solver
+import { solveIKChain } from './inverse_kinematic_rig.js';
 
 // Set up the mannequin scene
 const scene = new THREE.Scene();
@@ -618,59 +621,38 @@ function isDescendant(child, parent) {
     return false;
 }
 
-// Move the hand toward the pointer using CCD
+
+// Move the hand toward the pointer using Anthony's IK solver
 function solveHandIK(target) {
-    if (!activeHandIK || !loadedModel) return;
+    if (!activeHandIK || !loadedModel) {
+        return;
+    }
 
     const { shoulder, elbow, wrist } = activeHandIK;
-    const jointPosition = new THREE.Vector3();
-    const wristPosition = new THREE.Vector3();
 
-    for (let iteration = 0; iteration < 15; iteration++) {
-        for (const joint of [elbow, shoulder]) {
-            loadedModel.updateMatrixWorld(true);
+    // Anthony's shared CCD solver moves the wrist toward
+    // the mouse target by rotating the elbow and shoulder.
+    solveIKChain({
+        model: loadedModel,
 
-            joint.getWorldPosition(jointPosition);
-            wrist.getWorldPosition(wristPosition);
+        // Solve from the elbow back toward the shoulder
+        joints: [elbow, shoulder],
 
-            const towardWrist = wristPosition.clone().sub(jointPosition);
-            const towardTarget = target.clone().sub(jointPosition);
+        // The wrist is the point we're trying to move
+        endEffector: wrist,
 
-            if (
-                towardWrist.lengthSq() < 1e-10 ||
-                towardTarget.lengthSq() < 1e-10
-            ) {
-                continue;
-            }
+        // Target position calculated from the mouse
+        target: target,
 
-            const worldRotation = new THREE.Quaternion().setFromUnitVectors(
-                towardWrist.normalize(),
-                towardTarget.normalize()
-            );
+        // Keep the existing movement behavior
+        iterations: 15,
+        tolerance: 0.001,
+        maxStepDegrees: 15,
 
-            const parentRotation = new THREE.Quaternion();
-
-            if (joint.parent) {
-                joint.parent.getWorldQuaternion(parentRotation);
-            }
-
-            const localRotation = parentRotation.clone()
-                .invert()
-                .multiply(worldRotation)
-                .multiply(parentRotation);
-
-            joint.quaternion.premultiply(localRotation);
-
-            constrainJointRotation(joint);
-        }
-
-        loadedModel.updateMatrixWorld(true);
-        wrist.getWorldPosition(wristPosition);
-
-        if (wristPosition.distanceToSquared(target) < 1e-6) {
-            break;
-        }
-    }
+        // Preserve Rosie's joint movement limits
+        // for BOTH the elbow and shoulder.
+        constrainJoint: constrainJointRotation
+    });
 }
 
 // Update hand IK while dragging
