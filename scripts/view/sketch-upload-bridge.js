@@ -1,4 +1,3 @@
-
 // Store the latest sketch pose JSON in the main website
 window.sketchUploadPoseJson = null;
 
@@ -51,25 +50,46 @@ window.addEventListener("message", function (event) {
 
     // INTEGRATION FIX:
     // Share the sketch pose with Maryam's search controller.
-    // currentUserPose is declared in pose-controller.js.
-    if (typeof currentUserPose === "undefined") {
+    if (typeof currentUserPose !== "undefined") {
+
+        currentUserPose = window.sketchUploadPoseJson;
+
+        // Enable Search when a sketch pose is available.
+        // Disable Search when the sketch pose is cleared.
+        const searchButton = document.getElementById(
+            "search-button"
+        );
+
+        if (searchButton) {
+            searchButton.disabled = !currentUserPose;
+        }
+
+    } else {
+
         console.error(
             "Search pose controller is not loaded."
         );
-        return;
+
     }
 
-    currentUserPose = window.sketchUploadPoseJson;
-
-    // INTEGRATION FIX:
-    // Enable Search when we have a sketch pose.
-    // Disable Search when the sketch pose is cleared.
-    const searchButton = document.getElementById(
-        "search-button"
+    // Forward the sketch pose to the Three.js mannequin
+    const sketchPoseMannequinFrame = document.getElementById(
+        "mannequin-frame"
     );
 
-    if (searchButton) {
-        searchButton.disabled = !currentUserPose;
+    if (sketchPoseMannequinFrame?.contentWindow) {
+
+        sketchPoseMannequinFrame.contentWindow.postMessage(
+            {
+                type: "SKETCH_POSE_UPDATED",
+                pose: window.sketchUploadPoseJson
+            },
+            window.location.origin
+        );
+
+        console.log(
+            "Sketch pose update forwarded to mannequin"
+        );
     }
 
     if (window.sketchUploadPoseJson) {
