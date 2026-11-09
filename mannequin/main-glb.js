@@ -1,4 +1,3 @@
-
 import * as THREE from './three.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from './OrbitControls.js';
@@ -843,6 +842,160 @@ window.addEventListener("blur", () => {
     controls.enabled = true;
 });
 
+function addFaceMarker(model) {
+    model.updateMatrixWorld(true);
+
+    const head = model.getObjectByName("Head");
+
+    if (!head || !head.isMesh || !head.geometry) {
+        console.warn("Head mesh not found.");
+        return;
+    }
+
+    head.geometry.computeBoundingBox();
+
+    const bounds = head.geometry.boundingBox;
+    const center = bounds.getCenter(new THREE.Vector3());
+    const size = bounds.getSize(new THREE.Vector3());
+
+    const faceWidth = size.x * 0.65;
+    const faceHeight = size.y * 0.65;
+    const surfaceOffset = Math.max(size.z * 0.003, 0.001);
+
+    const face = new THREE.Group();
+    face.name = "MannequinFace";
+    head.add(face);
+
+    const black = new THREE.MeshBasicMaterial({
+        color: 0x000000,
+        side: THREE.DoubleSide,
+        depthTest: true,
+        depthWrite: false
+    });
+
+    const localRaycaster = new THREE.Raycaster();
+
+    function addFeature(x, y, radius) {
+        const origin = new THREE.Vector3(
+            center.x + x,
+            center.y + y,
+            bounds.max.z + size.z
+        );
+
+        localRaycaster.set(
+            origin.applyMatrix4(head.matrixWorld),
+            new THREE.Vector3(0, 0, -1)
+                .transformDirection(head.matrixWorld)
+        );
+
+        const intersections = localRaycaster.intersectObject(head, false);
+
+        if (!intersections.length) {
+            console.warn("Could not find face surface at:", x, y);
+            return null;
+        }
+
+        const hit = intersections[0];
+
+        const localPoint = head.worldToLocal(hit.point.clone());
+
+        const localNormal = hit.face.normal.clone().normalize();
+
+        const feature = new THREE.Mesh(
+            new THREE.CircleGeometry(radius, 24),
+            black
+        );
+
+        feature.position.copy(localPoint);
+        feature.position.addScaledVector(localNormal, surfaceOffset);
+        feature.quaternion.setFromUnitVectors(
+            new THREE.Vector3(0, 0, 1),
+            localNormal
+        );
+
+        face.add(feature);
+
+        return feature;
+    }
+
+    // Eyes
+    addFeature(
+        -faceWidth * 0.25,
+        faceHeight * 0.18,
+        faceWidth * 0.055
+    );
+
+    addFeature(
+        faceWidth * 0.25,
+        faceHeight * 0.18,
+        faceWidth * 0.055
+    );
+
+function addMouth() {
+    const points = [];
+
+    // Create a curved smile using several surface points.
+    for (let i = 0; i <= 16; i++) {
+        const t = i / 16;
+        const x = THREE.MathUtils.lerp(
+            -faceWidth * 0.15,
+            faceWidth * 0.15,
+            t
+        );
+
+        const y =
+            -faceHeight * 0.19 -
+            Math.sin(t * Math.PI) * faceHeight * 0.045;
+
+        const origin = new THREE.Vector3(
+            center.x + x,
+            center.y + y,
+            bounds.max.z + size.z
+        );
+
+        const worldOrigin = head.localToWorld(origin.clone());
+
+        const direction = new THREE.Vector3(0, 0, -1)
+            .transformDirection(head.matrixWorld);
+
+        localRaycaster.set(worldOrigin, direction);
+
+        const hit = localRaycaster.intersectObject(head, false)[0];
+
+        if (!hit) continue;
+
+        const localPoint = head.worldToLocal(hit.point.clone());
+        const localNormal = hit.face.normal.clone().normalize();
+
+        localPoint.addScaledVector(localNormal, surfaceOffset);
+
+        points.push(localPoint);
+    }
+
+        if (points.length < 2) return;
+
+        const curve = new THREE.CatmullRomCurve3(points);
+
+        const mouth = new THREE.Mesh(
+            new THREE.TubeGeometry(
+                curve,
+                32,
+                faceWidth * 0.008,
+                6,
+                false
+            ),
+            black
+        );
+
+        mouth.name = "helper_FaceMouth";
+        face.add(mouth);
+    }
+
+    addMouth();
+
+    console.log("Surface-aligned mannequin face added.");
+}
+
 // Load the Blender mannequin
 const loader = new GLTFLoader();
 
@@ -885,6 +1038,8 @@ loader.load(
 
         loadedModel.position.sub(center);
         scene.add(loadedModel);
+
+        addFaceMarker(loadedModel);
 
         alignShoulderPivots(loadedModel);
         saveRestRotations(loadedModel);
