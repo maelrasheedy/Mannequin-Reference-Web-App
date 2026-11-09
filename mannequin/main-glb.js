@@ -1040,7 +1040,7 @@ loader.load(
         const distance = Math.max(
             size.y / (2 * Math.tan(verticalFov / 2)),
             size.x / (2 * Math.tan(horizontalFov / 2))
-        ) * 1.35;
+        ) * 1.05;
 
         camera.position.set(
             modelCenter.x,
@@ -1049,7 +1049,7 @@ loader.load(
         );
 
         controls.target.copy(modelCenter);
-        controls.minDistance = maxDim * 0.3;
+        controls.minDistance = maxDim * 0.5;
         controls.maxDistance = maxDim * 15;
         controls.update();
 
