@@ -67,11 +67,41 @@ export async function detectHumanPose(imageElement) {
     // Detect human body landmarks directly from the uploaded image
     const result = detector.detect(imageElement);
 
-    // Return the detected pose and its 3D world landmarks
+   // Get the detected landmarks and calculate their average visibility
+    const landmarks = result.landmarks[0] || null;
+    const averageLandmarkConfidence =
+        calculateAverageLandmarkConfidence(landmarks);
+
+    // Return the detected pose, landmarks, and average visibility score
     return {
         detected: result.landmarks.length > 0,
-        landmarks: result.landmarks[0] || null,
-        worldLandmarks: result.worldLandmarks[0] || null
+        landmarks: landmarks,
+        worldLandmarks: result.worldLandmarks[0] || null,
+        averageLandmarkConfidence: averageLandmarkConfidence
     };
+}
 
+// Calculate the average visibility confidence of detected landmarks
+export function calculateAverageLandmarkConfidence(landmarks) {
+    if (!Array.isArray(landmarks) || landmarks.length === 0) {
+        return 0;
+    }
+
+    const totalConfidence = landmarks.reduce((total, landmark) => {
+        const confidence = Number.isFinite(landmark.visibility)
+            ? landmark.visibility
+            : 0;
+
+        return total + confidence;
+    }, 0);
+
+    return totalConfidence / landmarks.length;
+}
+
+// Check whether the average landmark visibility meets our threshold
+export function meetsLandmarkConfidenceThreshold(landmarks) {
+    const averageConfidence =
+        calculateAverageLandmarkConfidence(landmarks);
+
+    return averageConfidence >= 0.7;
 }

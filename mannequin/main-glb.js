@@ -48,6 +48,10 @@ let selectedArm = null;
 let draggingJoint = null;
 let activeHandIK = null;
 
+// Task 4.5.9 - Store sketch poses until the mannequin is ready.
+let pendingSketchPose = undefined;
+let hasAppliedSketchPose = false;
+
 let previousMouseX = 0;
 let previousMouseY = 0;
 let draggingPointerId = null;
@@ -156,6 +160,475 @@ function constrainJointRotation(joint) {
         );
     }
 }
+
+
+// ============================================================
+// TASK 4.5.9 - SKETCH POSE TO MANNEQUIN
+// ============================================================
+
+// Connect our team's 14 sketch segments to the Blender mannequin parts.
+// The screen-side mapping may need adjustment after visual testing.
+const SKETCH_JOINT_MAPPING = [
+    {
+        poseName: "torso",
+        jointName: "Waist_Joint",
+        endNames: ["Neck"]
+    },
+    {
+        poseName: "neck",
+        jointName: "Neck",
+        endNames: ["Head"]
+    },
+
+    {
+        poseName: "left_shoulder",
+        jointName: "UpperArm_ScreenRight",
+        endNames: ["Forearm_ScreenRight"]
+    },
+    {
+        poseName: "left_elbow",
+        jointName: "Forearm_ScreenRight",
+        endNames: ["Wrist_ScreenRight"]
+    },
+    {
+        poseName: "left_wrist",
+        jointName: "Wrist_ScreenRight",
+        endNames: ["Palm_ScreenRight"]
+    },
+
+    {
+        poseName: "right_shoulder",
+        jointName: "UpperArm_ScreenLeft",
+        endNames: ["Forearm_ScreenLeft"]
+    },
+    {
+        poseName: "right_elbow",
+        jointName: "Forearm_ScreenLeft",
+        endNames: ["Wrist_ScreenLeft"]
+    },
+   {
+        poseName: "right_wrist",
+        jointName: "Wrist_ScreenLeft",
+        endNames: ["Palm_ScreenLeft"]
+    },
+    {
+        poseName: "left_hip",
+        jointName: "Thigh_ScreenRight",
+        endNames: ["Shin_ScreenRight"]
+    },
+    {
+        poseName: "left_knee",
+        jointName: "Shin_ScreenRight",
+        endNames: ["Ankle_ScreenRight"]
+    },
+    {
+        poseName: "left_ankle",
+        jointName: "Ankle_ScreenRight",
+        endNames: ["Foot_ScreenRight"]
+    },
+
+    {
+        poseName: "right_hip",
+        jointName: "Thigh_ScreenLeft",
+        endNames: ["Shin_ScreenLeft"]
+    },
+    {
+        poseName: "right_knee",
+        jointName: "Shin_ScreenLeft",
+        endNames: ["Ankle_ScreenLeft"]
+    },
+    {
+        poseName: "right_ankle",
+        jointName: "Ankle_ScreenLeft",
+        endNames: ["Foot_ScreenLeft"]
+    }
+];
+
+// Check that the incoming sketch pose has all 14 valid segments.
+function isValidSketchPose(pose) {
+    if (
+        !pose ||
+        !Array.isArray(pose.pose_vector) ||
+        pose.pose_vector.length !== 14
+    ) {
+        return false;
+    }
+
+    const joints = new Map();
+
+    for (const joint of pose.pose_vector) {
+        if (
+            !joint ||
+            typeof joint.name !== "string" ||
+            joints.has(joint.name) ||
+            !Number.isFinite(joint["x-plane-angle"]) ||
+            !Number.isFinite(joint["y-plane-angle"]) ||
+            !Number.isFinite(joint["z-plane-angle"])
+        ) {
+            return false;
+        }
+
+        joints.set(joint.name, joint);
+    }
+
+    return SKETCH_JOINT_MAPPING.every((mapping) =>
+        joints.has(mapping.poseName)
+    );
+}
+
+// Convert the sketch's plane angles back into a 3D direction.
+function sketchAnglesToDirection(jointData) {
+    const angleX = THREE.MathUtils.degToRad(
+        jointData["x-plane-angle"]
+    );
+
+    const angleY = THREE.MathUtils.degToRad(
+        jointData["y-plane-angle"]
+    );
+
+    const angleZ = THREE.MathUtils.degToRad(
+        jointData["z-plane-angle"]
+    );
+
+    // Convert MediaPipe's downward-positive Y to Three.js upward-positive Y.
+    // The Z direction is an initial mapping to verify with the actual model.
+    const direction = new THREE.Vector3(
+        Math.sin(angleX),
+        -Math.sin(angleY),
+        -Math.sin(angleZ)
+    );
+
+    if (
+        !Number.isFinite(direction.x) ||
+        !Number.isFinite(direction.y) ||
+        !Number.isFinite(direction.z) ||
+        direction.lengthSq() < 1e-8
+    ) {
+        return null;
+    }
+
+    return direction.normalize();
+}
+
+// Restore the mannequin's original Blender joint rotations.
+function restoreSketchRestPose() {
+    if (!loadedModel) {
+        return;
+    }
+
+    loadedModel.traverse((joint) => {
+        const restRotation = joint.userData.restRotation;
+
+        if (restRotation) {
+            joint.rotation.copy(restRotation);
+        }
+    });
+
+    loadedModel.updateMatrixWorld(true);
+}
+
+// Stop manual dragging before applying an automatic sketch pose.
+function stopSketchPoseInteraction() {
+    if (activeHandIK) {
+        finishHandIKDrag();
+    }
+
+    if (
+        draggingPointerId !== null &&
+        renderer.domElement.hasPointerCapture(draggingPointerId)
+    ) {
+        renderer.domElement.releasePointerCapture(
+            draggingPointerId
+        );
+    }
+
+    draggingJoint = null;
+    draggingPointerId = null;
+
+    controls.enabled = true;
+}
+
+// Restore the mannequin when an applied sketch pose is removed.
+function resetSketchMannequinPose() {
+    if (!loadedModel || !hasAppliedSketchPose) {
+        return;
+    }
+
+    stopSketchPoseInteraction();
+    restoreSketchRestPose();
+
+    hasAppliedSketchPose = false;
+
+    console.log("Mannequin restored after sketch pose cleared.");
+}
+
+// Find a usable endpoint for each mannequin body segment
+function findSketchSegmentEnd(joint, endNames) {
+    loadedModel.updateMatrixWorld(true);
+
+    const jointPosition = joint.getWorldPosition(
+        new THREE.Vector3()
+    );
+
+    for (const endName of endNames) {
+        const end = loadedModel.getObjectByName(endName);
+
+        if (!end || !isDescendant(end, joint)) {
+            continue;
+        }
+
+        const endPosition = end.getWorldPosition(
+            new THREE.Vector3()
+        );
+
+        // Use the normal pivot when the two joints are separated
+        if (endPosition.distanceToSquared(jointPosition) > 1e-8) {
+            return end;
+        }
+
+        // Reuse a previously calculated geometry endpoint
+        if (end.userData.sketchEndpointHelper) {
+            return end.userData.sketchEndpointHelper;
+        }
+
+        // Some Blender parts share a pivot, so use their mesh center
+        const bounds = new THREE.Box3().setFromObject(end);
+
+        if (bounds.isEmpty()) {
+            continue;
+        }
+
+        const geometryCenter = bounds.getCenter(
+            new THREE.Vector3()
+        );
+
+        if (
+            geometryCenter.distanceToSquared(jointPosition) <= 1e-8
+        ) {
+            continue;
+        }
+
+        // Attach a helper point so it moves with the mannequin part
+        const helper = new THREE.Object3D();
+        helper.name = `helper_sketch_endpoint_${endName}`;
+
+        const localPosition = end.worldToLocal(
+            geometryCenter.clone()
+        );
+
+        end.add(helper);
+        helper.position.copy(localPosition);
+
+        end.userData.sketchEndpointHelper = helper;
+
+        console.log(
+            "Using geometry-based sketch endpoint:",
+            endName
+        );
+
+        return helper;
+    }
+
+    return null;
+}
+
+// Rotate one mannequin segment toward its detected sketch direction.
+function rotatePartTowardSketch(joint, segmentEnd, targetDirection) {
+    loadedModel.updateMatrixWorld(true);
+
+    const jointPosition = joint.getWorldPosition(
+        new THREE.Vector3()
+    );
+
+    const endPosition = segmentEnd.getWorldPosition(
+        new THREE.Vector3()
+    );
+
+    const currentDirection = endPosition.sub(jointPosition);
+
+    if (currentDirection.lengthSq() < 1e-8) {
+        return false;
+    }
+
+    currentDirection.normalize();
+
+    // Calculate the rotation needed to align the segment directions.
+    const worldCorrection = new THREE.Quaternion()
+        .setFromUnitVectors(
+            currentDirection,
+            targetDirection
+        );
+
+    // Convert the rotation into the joint parent's local coordinates.
+    const parentRotation = new THREE.Quaternion();
+
+    if (joint.parent) {
+        joint.parent.getWorldQuaternion(parentRotation);
+    }
+
+    const localCorrection = parentRotation.clone()
+        .invert()
+        .multiply(worldCorrection)
+        .multiply(parentRotation);
+
+    joint.quaternion.premultiply(localCorrection);
+
+    // Apply the same limits to IK as normal dragging.
+    constrainJointRotation(joint);
+
+    loadedModel.updateMatrixWorld(true);
+
+    return true;
+}
+
+// Apply the uploaded human sketch pose to the mannequin.
+function applySketchPose(pose) {
+    if (!loadedModel) {
+        return false;
+    }
+
+    if (!isValidSketchPose(pose)) {
+        console.warn("Cannot apply an invalid sketch pose.");
+        return false;
+    }
+
+    const poseByName = new Map(
+        pose.pose_vector.map((joint) => [joint.name, joint])
+    );
+
+    const availableSegments = [];
+
+    // Find each matching part in our Blender mannequin.
+    for (const mapping of SKETCH_JOINT_MAPPING) {
+        const joint = loadedModel.getObjectByName(
+            mapping.jointName
+        );
+
+        if (!joint) {
+            console.warn(
+                "Missing mannequin joint:",
+                mapping.jointName
+            );
+            continue;
+        }
+
+        const segmentEnd = findSketchSegmentEnd(
+            joint,
+            mapping.endNames
+        );
+
+        if (!segmentEnd) {
+            console.warn(
+                "Missing connected segment for:",
+                mapping.poseName
+            );
+            continue;
+        }
+
+        const targetDirection = sketchAnglesToDirection(
+            poseByName.get(mapping.poseName)
+        );
+
+        if (!targetDirection) {
+            console.warn(
+                "Invalid sketch direction for:",
+                mapping.poseName
+            );
+            continue;
+        }
+
+        availableSegments.push({
+            poseName: mapping.poseName,
+            joint,
+            segmentEnd,
+            targetDirection
+        });
+    }
+
+    if (availableSegments.length === 0) {
+        console.warn(
+            "No compatible mannequin parts found for sketch pose."
+        );
+        return false;
+    }
+
+    // Begin every sketch pose from the mannequin's resting position.
+    stopSketchPoseInteraction();
+    restoreSketchRestPose();
+
+    let updatedCount = 0;
+
+    // Apply the pose from the central body toward the outer joints.
+    for (const segment of availableSegments) {
+        const updated = rotatePartTowardSketch(
+            segment.joint,
+            segment.segmentEnd,
+            segment.targetDirection
+        );
+
+        if (updated) {
+            updatedCount++;
+        }
+    }
+
+    hasAppliedSketchPose = updatedCount > 0;
+
+    console.log(
+        "Sketch pose applied to mannequin:",
+        updatedCount,
+        "of 14 segments"
+    );
+
+    if (updatedCount < 14) {
+        console.warn(
+            "Some sketch segments could not be mapped. Check the Blender part names and hierarchy."
+        );
+    }
+
+    return hasAppliedSketchPose;
+}
+
+// Receive pose updates from the main website.
+window.addEventListener("message", function (event) {
+    // Only accept messages from the parent page on our own website.
+    if (
+        window.parent === window ||
+        event.origin !== window.location.origin ||
+        event.source !== window.parent
+    ) {
+        return;
+    }
+
+    const message = event.data;
+
+    if (!message || message.type !== "SKETCH_POSE_UPDATED") {
+        return;
+    }
+
+    // A null pose means the sketch was removed or rejected.
+    if (message.pose === null) {
+        pendingSketchPose = null;
+        resetSketchMannequinPose();
+        return;
+    }
+
+    if (!isValidSketchPose(message.pose)) {
+        console.warn("Rejected invalid sketch pose message.");
+        return;
+    }
+
+    // Save the pose in case the mannequin is still loading.
+    pendingSketchPose = message.pose;
+
+    if (loadedModel) {
+        applySketchPose(pendingSketchPose);
+    }
+});
+
+
+// ============================================================
+// EXISTING MANNEQUIN MODEL AND CONTROLS
+// ============================================================
 
 // Some Blender exports have an extra letter in the left shoulder's name.
 function fixShoulderName(model) {
@@ -658,6 +1131,44 @@ loader.load(
         // Save the final resting pose after any pivot adjustments.
         saveRestRotations(loadedModel);
 
+        // Check the actual wrist children and ankle-to-foot distances.
+        loadedModel.updateMatrixWorld(true);
+
+        for (const side of ["Left", "Right"]) {
+            const wrist = loadedModel.getObjectByName(
+                `Wrist_Screen${side}`
+            );
+
+            const ankle = loadedModel.getObjectByName(
+                `Ankle_Screen${side}`
+            );
+
+            const foot = loadedModel.getObjectByName(
+                `Foot_Screen${side}`
+            );
+
+            const wristParts = [];
+
+            wrist?.traverse((part) => {
+                if (part !== wrist && part.name) {
+                    wristParts.push(part.name);
+                }
+            });
+
+            const ankleFootDistance = ankle && foot
+                ? ankle.getWorldPosition(
+                    new THREE.Vector3()
+                ).distanceTo(
+                    foot.getWorldPosition(new THREE.Vector3())
+                )
+                : null;
+
+            console.log("Sketch endpoints:", side, {
+                wristParts,
+                ankleFootDistance
+            });
+        }
+
         // Fit the entire mannequin inside the camera view.
         const modelBox = new THREE.Box3().setFromObject(loadedModel);
         const size = modelBox.getSize(new THREE.Vector3());
@@ -666,7 +1177,8 @@ loader.load(
 
         const verticalFov = THREE.MathUtils.degToRad(camera.fov);
         const horizontalFov = 2 * Math.atan(
-            Math.tan(verticalFov / 2) * camera.aspect
+            Math.tan(verticalFov / 2)
+            * camera.aspect
         );
 
         const distance = Math.max(
@@ -686,6 +1198,11 @@ loader.load(
         controls.update();
 
         console.log("Mannequin loaded successfully.");
+
+        // Apply any sketch pose received while the GLB was loading.
+        if (pendingSketchPose) {
+            applySketchPose(pendingSketchPose);
+        }
     },
     undefined,
     (error) => {
@@ -708,5 +1225,7 @@ window.addEventListener("resize", () => {
     camera.updateProjectionMatrix();
 
     renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(
+        window.devicePixelRatio, 2
+    ));
 });
