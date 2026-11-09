@@ -3,11 +3,12 @@
 <html lang="en">
 
 <head>
-    <!-- Here we are setting our webpage up and connecting the CSS file -->
+    <!-- Set up the page and connect the stylesheets -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sketch Image Upload</title>
-    <!--maryam addded-->
+
+    <!-- CSS files for the website and upload section -->
     <link rel="stylesheet" href="../styles/tokens.css">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -15,35 +16,56 @@
 <body>
     <main>
 
-        <!-- Here I am grouping the heading and instructions so I can hide them after uploading an image -->
+        <!-- Upload instructions are hidden when an image is selected -->
         <div id="uploadInstructions">
             <h1>Upload Your Sketch</h1>
-            <p>Select an image to preview before searching for reference images.</p>
+            <p>Choose a JPG, JPEG, or PNG image, or drag and drop one here.</p>
+            <p>Maximum file size: 10 MB.</p>
         </div>
 
-        <!-- Lets the user choose a JPG, JPEG or PNG image -->
+        <!-- File input only accepts JPG, JPEG, and PNG images -->
         <input
             type="file"
             id="sketchUpload"
             accept=".jpg,.jpeg,.png"
         >
 
-        <!-- Holds the image preview until the user selects a image-->
+        <!-- Display the selected image before and after confirmation -->
         <div id="previewContainer">
             <img id="imagePreview" alt="Uploaded sketch preview" hidden>
         </div>
 
-        <!-- Lets the user remove the image if they want to upload a different one -->
+        <!-- Ask the user to confirm or cancel the selected image -->
+        <dialog id="uploadConfirmDialog">
+            <h2>Confirm Image Upload</h2>
+            <p>Would you like to use this image?</p>
+
+            <button id="confirmUpload" type="button">
+                Upload
+            </button>
+
+            <button id="cancelUpload" type="button">
+                Cancel
+            </button>
+        </dialog>
+
+        <!-- Remove the current image and clear its saved pose data -->
         <button id="removeImage" type="button" hidden>
             Remove Image
         </button>
 
-        <!-- Shows messages or errors about the selected file -->
+        <!-- Select a replacement image without losing the current one until confirmed -->
+        <button id="changeImage" type="button" hidden>
+            Change Image
+        </button>
+
+
+        <!-- Show upload status, validation errors, and pose detection messages -->
         <p id="uploadMessage" role="status"></p>
 
     </main>
 
-    <!-- Here we are connecting the JavaScript file to make the upload feature work -->
+    <!-- JavaScript handles image uploading, validation, and pose detection -->
     <script src="script.js"></script>
 </body>
 
