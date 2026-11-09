@@ -318,6 +318,25 @@ body {
     margin-top: 0;
 }
 
+/* About tab: cards lift slightly when hovered */
+.member {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.member:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 8px 18px var(--color-disabled-text);
+}
+
+/* Respect people who turn animations off in their system settings */
+@media (prefers-reduced-motion: reduce) {
+    .member {
+        transition: none;
+    }
+    .member:hover {
+        transform: none;
+    }
+}
 
 
 /* BEGINNING OF REFERENCE IMAGE GALLERY */
