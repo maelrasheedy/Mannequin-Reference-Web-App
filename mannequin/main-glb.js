@@ -1166,7 +1166,7 @@ function updateHandIKDrag(event) {
     solveHandIK(target);
 
     // Let the main website know the hand pose changed
-    scheduleMannequinPoseUpdate();
+    //scheduleMannequinPoseUpdate(); //removing this so it only updates on release (maryam)
 }
 
 // Stop hand IK and restore camera controls
@@ -1181,6 +1181,8 @@ function finishHandIKDrag() {
     }
 
     controls.enabled = true;
+    // Send the pose once, now that the drag has ended
+    scheduleMannequinPoseUpdate(); //added so that pose only updates on release (maryam)
     return true;
 }
 
@@ -1238,7 +1240,7 @@ renderer.domElement.addEventListener("pointermove", (event) => {
     previousMouseY = event.clientY;
 
     // Update the reference-search pose after moving a joint
-    scheduleMannequinPoseUpdate();
+    //scheduleMannequinPoseUpdate(); //removing this so pose only updates on release (maryam)
 }, true);
 
 // Stop joint dragging
@@ -1261,6 +1263,8 @@ function stopJointDragging(event) {
     if (renderer.domElement.hasPointerCapture(event.pointerId)) {
         renderer.domElement.releasePointerCapture(event.pointerId);
     }
+    // Send the pose once, now that the drag has ended
+    scheduleMannequinPoseUpdate(); //added so that pose only updates on release (maryam)
 }
 
 renderer.domElement.addEventListener("pointerup", stopJointDragging, true);
@@ -1296,10 +1300,14 @@ window.addEventListener("keydown", (event) => {
 
 // Restore controls if the browser loses focus
 window.addEventListener("blur", () => {
-    finishHandIKDrag();
+    const wasDraggingJoint = draggingJoint !== null;
+
+    finishHandIKDrag(); // sends the pose itself if a hand drag was active
     draggingJoint = null;
     draggingPointerId = null;
     controls.enabled = true;
+
+    if (wasDraggingJoint) scheduleMannequinPoseUpdate();
 });
 
 
