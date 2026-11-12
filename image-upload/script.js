@@ -23,6 +23,7 @@ let confirmedPoseJson = null;
 // Keep track of the image and detection process
 let previewURL = null;
 let detectionRunId = 0;
+
 let imageArrayBuffer = null;
 
 let isUploadLoading = false;
@@ -336,7 +337,7 @@ sketchUpload.addEventListener("change", function () {
         removeImage.hidden = false;
 
         uploadMessage.textContent =
-            "Image selected successfully!";
+        "Image selected successfully!";
 
         uploadConfirmDialog.showModal();
     };
@@ -479,16 +480,18 @@ confirmUpload.addEventListener("click", async function () {
     }
 
     try {
-        const { detectHumanPose } = await import(
-            "./pose-detection.js"
+        // Let the Web Worker detect the human pose
+        const workerResponse = await window.HpeWorkerController.runPoseWorker(
+            imagePreview,
+            currentRunId
         );
 
         if (!isCurrentImage()) {
             return;
         }
 
-        // Run pose detection on the local image
-        const result = await detectHumanPose(imagePreview);
+        // Get the detection results sent back by the worker
+        const result = workerResponse.result;
 
         if (!isCurrentImage()) {
             return;
@@ -534,18 +537,8 @@ confirmUpload.addEventListener("click", async function () {
         console.log("Detected human pose:", detectedPose);
 
         try {
-            // Convert MediaPipe data into our team's pose format
-            const { generateUserPoseJson } = await import(
-                "./pose-vector.js"
-            );
-
-            if (!isCurrentImage()) {
-                return;
-            }
-
-            const userPoseJson = generateUserPoseJson(
-                result.worldLandmarks
-            );
+            // Use the 14-joint pose already calculated by the Web Worker
+            const userPoseJson = workerResponse.userPoseJson;
 
             if (!isCurrentImage()) {
                 return;

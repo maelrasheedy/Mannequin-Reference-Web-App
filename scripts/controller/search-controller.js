@@ -22,6 +22,64 @@
         statusBanner.textContent = text || "";
     }
 
+    // Task 5.6.8 - List the 14 joints required for a complete pose
+    const REQUIRED_JOINTS = [
+        "torso",
+        "neck",
+        "left_shoulder",
+        "left_elbow",
+        "left_wrist",
+        "right_shoulder",
+        "right_elbow",
+        "right_wrist",
+        "left_hip",
+        "left_knee",
+        "left_ankle",
+        "right_hip",
+        "right_knee",
+        "right_ankle"
+    ];
+
+    // Task 5.6.8 - Check that no joints or angles are missing
+    function isCompletePose(pose) {
+
+        // A complete pose must have exactly 14 joints
+        if (
+            !pose ||
+            !Array.isArray(pose.pose_vector) ||
+            pose.pose_vector.length !== REQUIRED_JOINTS.length
+        ) {
+            return false;
+        }
+
+        const jointNames = new Set();
+
+        for (const joint of pose.pose_vector) {
+
+            // Reject missing, unknown, or repeated joints
+            if (
+                !joint ||
+                !REQUIRED_JOINTS.includes(joint.name) ||
+                jointNames.has(joint.name)
+            ) {
+                return false;
+            }
+
+            jointNames.add(joint.name);
+
+            // Each joint must have three valid angle numbers
+            if (
+                !Number.isFinite(joint["x-plane-angle"]) ||
+                !Number.isFinite(joint["y-plane-angle"]) ||
+                !Number.isFinite(joint["z-plane-angle"])
+            ) {
+                return false;
+            }
+        }
+
+        return REQUIRED_JOINTS.every((name) => jointNames.has(name));
+    }
+
     // The Search button works as soon as the mannequin has sent a pose.
     window.addEventListener("message", (event) => {
         if (event.source !== mannequinFrame.contentWindow) return;
@@ -32,6 +90,16 @@
     searchButton.addEventListener("click", async () => {
         if (typeof currentUserPose === "undefined" || !currentUserPose) {
             setStatus("Pose the mannequin first, then press Search.");
+            return;
+        }
+
+        // Task 5.6.8 - Stop Search if the pose is incomplete
+        if (!isCompletePose(currentUserPose)) {
+            const message =
+                "Incomplete pose detected. Please upload a clearer full-body image or reset the mannequin and try again.";
+
+            setStatus(message);
+            showGalleryMessage(message);
             return;
         }
 
@@ -57,4 +125,5 @@
         }
     });
 
-})();
+})
+();
