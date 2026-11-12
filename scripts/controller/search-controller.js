@@ -16,27 +16,27 @@
 
     const searchButton = document.getElementById("search-button");
     const statusBanner = document.getElementById("status-banner");
-    const mannequinFrame = document.getElementById("mannequin-frame");
 
     function setStatus(text) {
         statusBanner.textContent = text || "";
     }
 
-    // The Search button works as soon as the mannequin has sent a pose.
-    window.addEventListener("message", (event) => {
-        if (event.source !== mannequinFrame.contentWindow) return;
-        if (!event.data || event.data.type !== "MANNEQUIN_POSE_CHANGED") return;
-        searchButton.disabled = false;
-    });
+
 
     searchButton.addEventListener("click", async () => {
-        if (typeof currentUserPose === "undefined" || !currentUserPose) {
-            setStatus("Pose the mannequin first, then press Search.");
-            return;
+        // Search with the pose as it is right now. There should always be
+        // one; if none has arrived yet, ask the mannequin for it.
+        let pose = typeof currentUserPose === "undefined" ? null : currentUserPose;
+
+        if (!pose && typeof requestMannequinPose === "function") {
+            setStatus("Reading the mannequin's pose...");
+            pose = await requestMannequinPose();
         }
 
-        // Search with the pose as it is right now.
-        const pose = currentUserPose;
+        if (!pose) {
+            setStatus("The mannequin is still loading. Please try again in a moment.");
+            return;
+        }
 
         searchButton.disabled = true;
         setStatus("Searching...");

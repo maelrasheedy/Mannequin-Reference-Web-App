@@ -605,6 +605,10 @@ window.addEventListener("message", function (event) {
     if (message.pose === null) {
         pendingSketchPose = null;
         resetSketchMannequinPose();
+
+        // Tell the main page the mannequin's pose again, so Search always
+        // has a valid pose after a sketch is removed.
+        scheduleMannequinPoseUpdate();
         return;
     }
 
@@ -1345,6 +1349,18 @@ window.addEventListener("message", (event) => {
 
     console.log("Mannequin reset to original pose!");
 });
+
+
+// The main page can ask for the current pose at any time, for example if
+// Search is clicked before the first pose has arrived.
+window.addEventListener("message", (event) => {
+    if (event.origin !== window.location.origin) return;
+    if (event.source !== window.parent) return;
+    if (event.data?.type !== "MANNEQUIN_REQUEST_POSE") return;
+
+    sendMannequinPose();
+});
+
 
 function addFaceMarker(model) {
     model.updateMatrixWorld(true);
