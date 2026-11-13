@@ -216,6 +216,12 @@ body {
     margin-top: 30px;
 }
 
+/* Here I am centering the gallery notice */
+#gallery-notice { 
+    text-align: center;
+    margin: var(--space-2) 0;
+}
+
 /* Here I am keeping the layout usable on smaller screens */
 @media (max-width: 1150px) {
     #workspace-columns {

@@ -12,7 +12,7 @@
  //(they all need to be loaded BEFORE this file)
 
 (function () {
-    const TOP_N = 20;
+    const TOP_N = 30; // the highest number of possible matches to the image gallery
 
     const searchButton = document.getElementById("search-button");
     const statusBanner = document.getElementById("status-banner");
@@ -45,9 +45,20 @@
             // Task 1.1.5 - Use the image data already saved in RAM
             const references = await window.ReferenceCache.loadReferences();
 
-            const matches = PoseMatcher.findMatches(pose, references, TOP_N);
-            renderGallery(matches);
+            const { matches, level } = PoseMatcher.search(pose, references, TOP_N);
+            renderGallery(matches, noticeForLevel(level)); 
+            // (level) based on whether there are ref image matches at 40 (great) 50 (good) 60 (um) none (no matches)
+        
             setStatus("");
+            // The message shown above the gallery, depending on how close the results are.
+            // (Edit the wording here.)
+            function noticeForLevel(level) {
+                if (level === 40) return "";                        // real matches: no warning
+                if (level === 50) return "Matche(s) found to a lower degree of accuracy:";
+                if (level === 60) return "Matche(s) found to an even lower degree of accuracy:";
+                return "No reference images in our dataset match your pose!!\n☹\nHere are the next closest matches:";   // nothing within 60
+            }
+
         } catch (error) {
             console.error("Search failed:", error);
             showGalleryMessage("Could not load the reference images.");

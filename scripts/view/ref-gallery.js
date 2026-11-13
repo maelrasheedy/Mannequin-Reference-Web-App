@@ -90,14 +90,35 @@ if (closeViewerButton && imageViewer) {
     closeViewerButton.addEventListener("click", () => imageViewer.close());
 }
 
+
+  // A small notice above the gallery, e.g. when nothing matches closely.
+  // Pass "" (or nothing) to remove it.
+  function showGalleryNotice(text) {
+      let notice = document.getElementById("gallery-notice");
+      if (!text) {
+          if (notice) notice.remove();
+          return;
+      }
+      if (!notice) {
+          notice = document.createElement("p");
+          notice.id = "gallery-notice";
+          notice.setAttribute("role", "status");
+          galleryGrid.parentElement.insertBefore(notice, galleryGrid);
+      }
+      notice.textContent = text;
+  }
+
+
 function showGalleryMessage(text) {
+    showGalleryNotice("");
     galleryGrid.replaceChildren();
     const message = document.createElement("p");
     message.textContent = text;
     galleryGrid.appendChild(message);
 }
 
-function renderGallery(results) {
+function renderGallery(results, notice) {
+    showGalleryNotice(notice);
     if (!results || results.length === 0) {
         showGalleryMessage("No matching reference images found.");
         return;
