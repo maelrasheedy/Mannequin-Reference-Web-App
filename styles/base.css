@@ -216,11 +216,15 @@ body {
     margin-top: 30px;
 }
 
-/* Here I am centering the gallery notice */
-#gallery-notice { 
+/* Here I am centering each gallery section notice */
+.gallery-section-notice {
+    grid-column: 1 / -1;
+    flex: 0 0 100%;
+    width: 100%;
     text-align: center;
     margin: var(--space-2) 0;
 }
+
 
 /* Here I am keeping the layout usable on smaller screens */
 @media (max-width: 1150px) {
@@ -328,19 +332,22 @@ body {
 
 /* BEGINNING OF REFERENCE IMAGE GALLERY */
 #gallery-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;   /* centres every row, including a shorter last row */
+    align-items: flex-start;
     gap: var(--space-3);
-    align-items: start;
 }
 
-/* the "no results" / placeholder message spans the whole row */
+/* the "no results" message and the accuracy warnings take a full row */
 #gallery-grid > p {
-    grid-column: 1 / -1;
+    flex: 0 0 100%;
+    text-align: center;
 }
 
 .gallery-item {
     margin: 0;
+    width: 190px;
 }
 
 .gallery-thumb {
@@ -366,11 +373,6 @@ body {
     object-fit: cover;
 }
 
-.gallery-item figcaption {
-    margin-top: var(--space-1);
-    font-size: var(--font-size-small);
-    color: var(--color-text-muted);
-}
 
 #image-viewer img {
     max-width: 90vw;

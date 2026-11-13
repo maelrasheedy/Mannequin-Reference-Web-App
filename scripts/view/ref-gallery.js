@@ -117,42 +117,53 @@ function showGalleryMessage(text) {
     galleryGrid.appendChild(message);
 }
 
-function renderGallery(results, notice) {
-    showGalleryNotice(notice);
-    if (!results || results.length === 0) {
+// One thumbnail + caption for a result.
+function createGalleryItem(result, number, total) {
+    const figure = document.createElement("figure");
+    figure.className = "gallery-item";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "gallery-thumb";
+    button.setAttribute("aria-label", `Enlarge reference image ${number} of ${total}`);
+    button.title = `Pose difference: ${result.score}°`;
+    button.addEventListener("click", () => openImageViewer(result));
+    button.addEventListener("pointerenter", () => preloadEnlarged(result));
+    button.addEventListener("focus", () => preloadEnlarged(result));
+
+    const img = document.createElement("img");
+    img.loading = "lazy";
+    img.src = cloudinaryResized(result.url, 400);
+    img.alt = `Reference image ${result.id}, match number ${number}`;
+    button.appendChild(img);
+
+    figure.append(button);
+    return figure;
+}
+
+// sections = [ { notice: "warning text, or empty", matches: [result, ...] }, ... ]
+// Each section shows its warning line (if any) and then its photos.
+function renderGallery(sections) {
+    const total = sections.reduce((sum, s) => sum + s.matches.length, 0);
+    if (total === 0) {
         showGalleryMessage("No matching reference images found.");
         return;
     }
 
-    const items = results.map((result, index) => {
-        const figure = document.createElement("figure");
-        figure.className = "gallery-item";
-
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "gallery-thumb";
-        button.setAttribute(
-            "aria-label",
-            `Enlarge reference image ${index + 1} of ${results.length}`
-        );
-        button.title = `Pose difference: ${result.score}°`;
-        button.addEventListener("click", () => openImageViewer(result));
-
-        button.addEventListener("pointerenter", () => preloadEnlarged(result));
-        button.addEventListener("focus", () => preloadEnlarged(result));
-
-        const img = document.createElement("img");
-        img.loading = "lazy";
-        img.src = cloudinaryResized(result.url, 400);
-        img.alt = `Reference image ${result.id}, match number ${index + 1}`;
-        button.appendChild(img);
-
-        const caption = document.createElement("figcaption");
-        caption.textContent = `#${index + 1}`;
-
-        figure.append(button, caption);
-        return figure;
-    });
-
+    const items = [];
+    let number = 0;
+    for (const section of sections) {
+        if (section.notice) {
+            const notice = document.createElement("p");
+            notice.className = "gallery-section-notice";
+            notice.setAttribute("role", "status");
+            notice.textContent = section.notice;
+            items.push(notice);
+        }
+        for (const result of section.matches) {
+            number += 1;
+            items.push(createGalleryItem(result, number, total));
+        }
+    }
     galleryGrid.replaceChildren(...items);
 }

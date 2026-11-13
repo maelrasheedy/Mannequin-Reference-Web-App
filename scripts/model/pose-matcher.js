@@ -196,35 +196,43 @@
     return results;
   }
 
-  // Same as findMatches but also says how close the matches are:
-  //   { matches: [ { id, url, score, partsCompared }, ... ],
-  //     goodMatch: true/false,
-  //     level: 40 | 50 | 60 | null }
-  // `level` is the cutoff that the shown photos fit under: GOOD_SCORE (40) when
-  // there are real matches, 50 or 60 when the search had to widen, and null when
-  // not even 60 was close enough (the closest few are shown anyway).
+
+  // Photos are split into bands by score: up to 40, then 40-50, then 50-60.
+  // Returns:
+  //   { groups: [ { level: 40 | 50 | 60 | null, matches: [ ... ] }, ... ],
+  //     matches: all photos in order, goodMatch: true/false, level: best band }
+  // Bands with no photos are left out. If NOTHING scores 60 or lower, there is
+  // one group with level null holding the MIN_RESULTS closest photos.
   function search(userPose, references, topN) {
     const limit = topN || DEFAULT_TOP_N;
     const all = rankAll(userPose, references); // every photo, best first
+    const levels = [GOOD_SCORE, ...FALLBACK_SCORES]; // [40, 50, 60]
 
-    const good = all.filter((r) => r.score <= GOOD_SCORE);
-    if (good.length > 0) {
-      return { matches: good.slice(0, limit), goodMatch: true, level: GOOD_SCORE };
+    const groups = [];
+    let previous = -Infinity;
+    let room = limit;
+    for (const level of levels) {
+      if (room <= 0) break;
+      const band = all
+        .filter((r) => r.score > previous && r.score <= level)
+        .slice(0, room);
+      if (band.length > 0) groups.push({ level, matches: band });
+      room -= band.length;
+      previous = level;
     }
 
-    // Nothing is a real match: fall back so the gallery is never empty.
-    for (const cutoff of FALLBACK_SCORES) {
-      const near = all.filter((r) => r.score <= cutoff);
-      if (near.length > 0) {
-        return { matches: near.slice(0, limit), goodMatch: false, level: cutoff };
-      }
+    if (groups.length === 0) {
+      const closest = all.slice(0, Math.min(limit, MIN_RESULTS));
+      return { groups: [{ level: null, matches: closest }], matches: closest, goodMatch: false, level: null };
     }
     return {
-      matches: all.slice(0, Math.min(limit, MIN_RESULTS)),
-      goodMatch: false,
-      level: null,
+      groups,
+      matches: groups.flatMap((g) => g.matches),
+      goodMatch: groups[0].level === GOOD_SCORE,
+      level: groups[0].level,
     };
   }
+
 
   function findMatches(userPose, references, topN) {
     return search(userPose, references, topN).matches;
