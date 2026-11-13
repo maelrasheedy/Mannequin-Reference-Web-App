@@ -12,7 +12,7 @@
  //(they all need to be loaded BEFORE this file)
 
 (function () {
-    const TOP_N = 30; // the highest number of possible matches to the image gallery
+    const TOP_N = 20; // the highest number of possible matches to the image gallery
 
     const searchButton = document.getElementById("search-button");
     const statusBanner = document.getElementById("status-banner");
