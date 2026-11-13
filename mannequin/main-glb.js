@@ -52,6 +52,7 @@ let loadedModel = null;
 let selectedArm = null;
 let draggingJoint = null;
 let activeHandIK = null;
+let activeJointDrag = null;
 
 // Task 4.5.9 - Store sketch poses until the mannequin is ready.
 let pendingSketchPose = undefined;
@@ -68,34 +69,34 @@ const mouse = new THREE.Vector2();
 // We still need to test and adjust some directions for our model.
 const JOINT_LIMITS = {
     UpperArm: {
-        x: [-120, 160],
-        y: [-60, 60],
-        z: [-130, 130]
+        x: [-160, 160],
+        y: [-100, 100],
+        z: [-160, 160]
     },
     Forearm: {
-        x: [-145, 0],
-        y: [-5, 5],
-        z: [-5, 5]
+        x: [-160, 0],
+        y: [-20, 20],
+        z: [-20, 20]
     },
     Wrist: {
-        x: [-65, 65],
-        y: [-30, 30],
-        z: [-25, 25]
-    },
-    Thigh: {
-        x: [-45, 120],
-        y: [-35, 35],
+        x: [-85, 85],
+        y: [-45, 45],
         z: [-45, 45]
     },
+    Thigh: {
+        x: [-90, 135],
+        y: [-65, 65],
+        z: [-75, 75]
+    },
     Shin: {
-        x: [0, 135],
-        y: [-5, 5],
-        z: [-5, 5]
+        x: [0, 145],
+        y: [-15, 15],
+        z: [-15, 15]
     },
     Ankle: {
-        x: [-45, 25],
-        y: [-20, 20],
-        z: [-25, 25]
+        x: [-60, 45],
+        y: [-35, 35],
+        z: [-40, 40]
     },
     Neck: {
         x: [-40, 40],
@@ -165,6 +166,203 @@ function constrainJointRotation(joint) {
         );
     }
 }
+
+
+// ============================================================
+// TORSO AND PELVIS COLLISION PREVENTION
+// ============================================================
+
+const COLLISION_SEGMENTS = [
+    { joint: "UpperArm_ScreenLeft", child: "Forearm_ScreenLeft", body: "Torso", skip: 0.45, radiusScale: 0.65 },
+    { joint: "Forearm_ScreenLeft", child: "Wrist_ScreenLeft", body: "Torso", skip: 0 },
+    { joint: "UpperArm_ScreenRight", child: "Forearm_ScreenRight", body: "Torso", skip: 0.45, radiusScale: 0.65 },
+    { joint: "Forearm_ScreenRight", child: "Wrist_ScreenRight", body: "Torso", skip: 0 },
+
+    { joint: "Thigh_ScreenLeft", child: "Shin_ScreenLeft", body: "Pelvis", skip: 0.22 },
+    { joint: "Shin_ScreenLeft", child: "Ankle_ScreenLeft", body: "Pelvis", skip: 0 },
+    { joint: "Thigh_ScreenRight", child: "Shin_ScreenRight", body: "Pelvis", skip: 0.22 },
+    { joint: "Shin_ScreenRight", child: "Ankle_ScreenRight", body: "Pelvis", skip: 0 }
+];
+
+function getCollisionRadiusWorld(limb) {
+    if (!limb?.geometry) return 0;
+
+    const geometry = limb.geometry;
+
+    if (!geometry.boundingBox) {
+        geometry.computeBoundingBox();
+    }
+
+    const size = geometry.boundingBox.getSize(
+        new THREE.Vector3()
+    );
+
+    // The limb's local X/Z dimensions describe its approximate cross-section.
+    const localRadius = Math.min(size.x, size.z) * 0.5;
+
+    const worldScale = limb.getWorldScale(
+        new THREE.Vector3()
+    );
+
+    return localRadius * Math.max(
+        worldScale.x,
+        worldScale.y,
+        worldScale.z
+    );
+}
+
+function pointInsideBodyBoundary(worldPoint, body, radiusWorld) {
+    if (!body?.geometry) return false;
+
+    const geometry = body.geometry;
+
+    if (!geometry.boundingBox) {
+        geometry.computeBoundingBox();
+    }
+
+    const bounds = geometry.boundingBox;
+
+    const center = bounds.getCenter(new THREE.Vector3());
+    const halfSize = bounds.getSize(new THREE.Vector3()).multiplyScalar(0.5);
+
+    const bodyScale = body.getWorldScale(
+        new THREE.Vector3()
+    );
+
+    const minimumScale = Math.max(
+        0.00001,
+        Math.min(
+            Math.abs(bodyScale.x),
+            Math.abs(bodyScale.y),
+            Math.abs(bodyScale.z)
+        )
+    );
+
+    // Expand the boundary by the limb's collision radius.
+    const localRadius = radiusWorld / minimumScale;
+
+    const radii = halfSize.addScalar(localRadius);
+
+    const localPoint = body.worldToLocal(
+        worldPoint.clone()
+    );
+
+    localPoint.sub(center);
+
+    const normalizedDistance =
+        (localPoint.x / Math.max(radii.x, 0.00001)) ** 2 +
+        (localPoint.y / Math.max(radii.y, 0.00001)) ** 2 +
+        (localPoint.z / Math.max(radii.z, 0.00001)) ** 2;
+
+    return normalizedDistance < 1;
+}
+
+function isMannequinPoseCollisionFree() {
+    if (!loadedModel) return true;
+
+    loadedModel.updateMatrixWorld(true);
+
+    for (const segment of COLLISION_SEGMENTS) {
+        const joint = loadedModel.getObjectByName(segment.joint);
+        const child = loadedModel.getObjectByName(segment.child);
+        const body = loadedModel.getObjectByName(segment.body);
+
+        if (!joint || !child || !body) continue;
+
+        const start = joint.getWorldPosition(
+            new THREE.Vector3()
+        );
+
+        const end = child.getWorldPosition(
+            new THREE.Vector3()
+        );
+
+        const radius =
+            getCollisionRadiusWorld(joint) *
+            (segment.radiusScale ?? 1);
+
+        if (radius <= 0) continue;
+
+        const direction = end.clone().sub(start);
+
+        if (direction.lengthSq() < 1e-10) continue;
+
+        // Check points along the limb, excluding the attachment area at the shoulder or hip.
+        for (let i = 0; i <= 12; i++) {
+            const t = segment.skip +
+                (1 - segment.skip) * (i / 12);
+
+            const sample = start.clone().addScaledVector(
+                direction,
+                t
+            );
+            if (
+                pointInsideBodyBoundary(
+                    sample,
+                    body,
+                    radius
+                )
+            ) {
+                console.warn(
+                    "Collision blocked:",
+                    segment.joint,
+                    "against",
+                    segment.body
+                );
+
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+// Apply a proposed joint rotation only when it does not introduce a torso or pelvis collision.
+function applyRotationWithCollision(joint, applyRotation) {
+    const originalRotation = joint.quaternion.clone();
+
+    applyRotation();
+
+    constrainJointRotation(joint);
+    loadedModel.updateMatrixWorld(true);
+
+    if (isMannequinPoseCollisionFree()) {
+        return true;
+    }
+
+    const candidateRotation = joint.quaternion.clone();
+
+    let low = 0;
+    let high = 1;
+    let bestRotation = originalRotation.clone();
+
+    // Find the largest safe portion of the rotation.
+    for (let i = 0; i < 10; i++) {
+        const middle = (low + high) * 0.5;
+
+        joint.quaternion.copy(originalRotation).slerp(
+            candidateRotation,
+            middle
+        );
+
+        constrainJointRotation(joint);
+        loadedModel.updateMatrixWorld(true);
+
+        if (isMannequinPoseCollisionFree()) {
+            low = middle;
+            bestRotation.copy(joint.quaternion);
+        } else {
+            high = middle;
+        }
+    }
+
+    joint.quaternion.copy(bestRotation);
+    loadedModel.updateMatrixWorld(true);
+
+    return low > 0.001;
+}
+
 
 // ============================================================
 // TASK 4.5.9 - SKETCH POSE TO MANNEQUIN
@@ -954,19 +1152,41 @@ function updateMousePosition(event) {
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 }
 
-// Find the visible mannequin part under the mouse
+
+function getClickedWorldPoint(event) {
+    if (!loadedModel) return null;
+
+    updateMousePosition(event);
+    raycaster.setFromCamera(mouse, camera);
+
+    const intersections = raycaster.intersectObject(
+        loadedModel,
+        true
+    );
+
+    const hit = intersections.find((intersection) =>
+        intersection.object.isMesh &&
+        !intersection.object.name.startsWith("helper_")
+    );
+
+    return hit ? hit.point.clone() : null;
+}
+// Find the actual mesh selected by the mouse.
 function getClickedPart(event) {
     if (!loadedModel) return null;
 
     updateMousePosition(event);
     raycaster.setFromCamera(mouse, camera);
 
-    const intersections = raycaster.intersectObject(loadedModel, true);
+    const intersections = raycaster.intersectObject(
+        loadedModel,
+        true
+    );
 
-    const hit = intersections.find((intersection) => {
-        return intersection.object.isMesh &&
-            !intersection.object.name.startsWith("helper_");
-    });
+    const hit = intersections.find((intersection) =>
+        intersection.object.isMesh &&
+        !intersection.object.name.startsWith("helper_")
+    );
 
     return hit ? hit.object : null;
 }
@@ -1129,7 +1349,8 @@ function solveHandIK(target) {
 
         // Preserve Rosie's joint movement limits
         // for BOTH the elbow and shoulder.
-        constrainJoint: constrainJointRotation
+        constrainJoint: constrainJointRotation,
+    isPoseValid: isMannequinPoseCollisionFree
     });
 }
 
@@ -1184,78 +1405,200 @@ function finishHandIKDrag() {
     return true;
 }
 
+function beginWorldSpaceJointDrag(event, joint, hitPoint) {
+    if (!joint || !hitPoint) return false;
+
+    loadedModel.updateMatrixWorld(true);
+    camera.updateMatrixWorld(true);
+
+    const cameraDirection = camera.getWorldDirection(
+        new THREE.Vector3()
+    );
+
+    const plane = new THREE.Plane()
+        .setFromNormalAndCoplanarPoint(
+            cameraDirection,
+            hitPoint
+        );
+
+    activeJointDrag = {
+        joint,
+        pointerId: event.pointerId,
+
+        // Preserve the exact point grabbed on the mesh.
+        localGrabPoint: joint.worldToLocal(
+            hitPoint.clone()
+        ),
+
+        plane
+    };
+
+    draggingJoint = joint;
+    draggingPointerId = event.pointerId;
+
+    controls.enabled = false;
+
+    renderer.domElement.setPointerCapture(
+        event.pointerId
+    );
+
+    event.preventDefault();
+
+    return true;
+}
+
+// Rotate the joint so its grabbed point follows the mouse.
+function updateWorldSpaceJointDrag(event) {
+    if (
+        !activeJointDrag ||
+        event.pointerId !== activeJointDrag.pointerId
+    ) {
+        return;
+    }
+
+    updateMousePosition(event);
+    raycaster.setFromCamera(mouse, camera);
+
+    const target = raycaster.ray.intersectPlane(
+        activeJointDrag.plane,
+        new THREE.Vector3()
+    );
+
+    if (!target) return;
+
+    const joint = activeJointDrag.joint;
+
+    loadedModel.updateMatrixWorld(true);
+
+    const jointPosition = joint.getWorldPosition(
+        new THREE.Vector3()
+    );
+
+    const currentGrabPoint = joint.localToWorld(
+        activeJointDrag.localGrabPoint.clone()
+    );
+
+    const currentDirection = currentGrabPoint.sub(
+        jointPosition
+    );
+
+    const targetDirection = target.sub(
+        jointPosition
+    );
+
+    if (
+        currentDirection.lengthSq() < 1e-10 ||
+        targetDirection.lengthSq() < 1e-10
+    ) {
+        return;
+    }
+
+    currentDirection.normalize();
+    targetDirection.normalize();
+
+    // Calculate the correction in world coordinates.
+const fullWorldDelta = new THREE.Quaternion()
+    .setFromUnitVectors(
+        currentDirection,
+        targetDirection
+    );
+
+// Reduce the rotation speed.
+const worldDelta = new THREE.Quaternion()
+    .identity()
+    .slerp(fullWorldDelta, 0.35);
+
+    // Convert the correction into local joint coordinates.
+    const parentWorldRotation = new THREE.Quaternion();
+
+    if (joint.parent) {
+        joint.parent.getWorldQuaternion(
+            parentWorldRotation
+        );
+    }
+
+    const localDelta = parentWorldRotation.clone()
+        .invert()
+        .multiply(worldDelta)
+        .multiply(parentWorldRotation);
+
+    applyRotationWithCollision(joint, () => {
+        joint.quaternion.premultiply(localDelta);
+    });
+}
+
 // Select a mannequin joint
 renderer.domElement.addEventListener("pointerdown", (event) => {
     if (!loadedModel || event.button !== 0) return;
 
     const clickedPart = getClickedPart(event);
+
     if (!clickedPart) return;
 
+    // Shift + click continues to use hand IK.
     if (event.shiftKey && beginHandIKDrag(event, clickedPart)) {
         return;
     }
 
     const joint = findMovableJoint(clickedPart);
+
     if (!joint) return;
 
-    draggingJoint = joint;
-    draggingPointerId = event.pointerId;
+    const hitPoint = getClickedWorldPoint(event);
 
-    previousMouseX = event.clientX;
-    previousMouseY = event.clientY;
+    if (!hitPoint) return;
 
     if (joint.name.startsWith("UpperArm_")) {
         selectedArm = joint;
     }
 
-    controls.enabled = false;
-    renderer.domElement.setPointerCapture(event.pointerId);
+    beginWorldSpaceJointDrag(
+        event,
+        joint,
+        hitPoint
+    );
 
-    event.preventDefault();
 }, true);
 
 // Rotate the selected joint with the mouse
 renderer.domElement.addEventListener("pointermove", (event) => {
+
+    // Hand IK takes priority.
     if (activeHandIK) {
         updateHandIKDrag(event);
         return;
     }
 
-    if (!draggingJoint || event.pointerId !== draggingPointerId) {
+    // All ordinary joint dragging uses world-space movement.
+    if (activeJointDrag) {
+        updateWorldSpaceJointDrag(event);
         return;
     }
 
-    const deltaX = event.clientX - previousMouseX;
-    const deltaY = event.clientY - previousMouseY;
-    const sensitivity = 0.008;
-
-    draggingJoint.rotation.z += deltaX * sensitivity;
-    draggingJoint.rotation.x += deltaY * sensitivity;
-
-    constrainJointRotation(draggingJoint);
-
-    previousMouseX = event.clientX;
-    previousMouseY = event.clientY;
-
-    // Update the reference-search pose after moving a joint
-    scheduleMannequinPoseUpdate();
 }, true);
 
 // Stop joint dragging
 function stopJointDragging(event) {
+
     if (activeHandIK) {
         if (event.pointerId === activeHandIK.pointerId) {
             finishHandIKDrag();
         }
+
         return;
     }
 
-    if (!draggingJoint || event.pointerId !== draggingPointerId) {
+    if (
+        !activeJointDrag ||
+        event.pointerId !== activeJointDrag.pointerId
+    ) {
         return;
     }
 
+    activeJointDrag = null;
     draggingJoint = null;
     draggingPointerId = null;
+
     controls.enabled = true;
 
     if (renderer.domElement.hasPointerCapture(event.pointerId)) {
@@ -1297,6 +1640,7 @@ window.addEventListener("keydown", (event) => {
 // Restore controls if the browser loses focus
 window.addEventListener("blur", () => {
     finishHandIKDrag();
+    activeJointDrag = null;
     draggingJoint = null;
     draggingPointerId = null;
     controls.enabled = true;

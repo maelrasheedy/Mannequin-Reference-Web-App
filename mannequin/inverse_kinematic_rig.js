@@ -1,3 +1,4 @@
+// Limbs should be moving towards the mouse regardless of the camera angle. Fix Clipping issues on the model.
 import * as THREE from './three.js';
 
 function isDescendantOf(object, ancestor) {
@@ -28,52 +29,135 @@ function calculateJointRotation(
         new THREE.Vector3()
     );
 
-    const towardEnd = endPosition.sub(jointPosition);
-    const towardTarget = target.clone().sub(jointPosition);
+    const currentDirection = endPosition.sub(jointPosition);
+    const targetDirection = target.clone().sub(jointPosition);
 
     if (
-        towardEnd.lengthSq() < 1e-10 ||
-        towardTarget.lengthSq() < 1e-10
+        currentDirection.lengthSq() < 1e-10 ||
+        targetDirection.lengthSq() < 1e-10
     ) {
         return false;
     }
 
-    towardEnd.normalize();
-    towardTarget.normalize();
+    currentDirection.normalize();
+    targetDirection.normalize();
 
-    const worldRotation = new THREE.Quaternion()
-        .setFromUnitVectors(towardEnd, towardTarget);
+    // Calculate the required world-space correction.
+    const worldDelta = new THREE.Quaternion()
+        .setFromUnitVectors(currentDirection, targetDirection);
 
-    // Limit the amount of rotation applied per iteration.
-    const angle = 2 * Math.acos(
-        THREE.MathUtils.clamp(worldRotation.w, -1, 1)
+    // Limit each rotation step.
+    const angle = worldDelta.angleTo(
+        new THREE.Quaternion()
     );
 
     if (angle > maxStepRadians) {
-        worldRotation.slerp(
-            new THREE.Quaternion(),
-            1 - maxStepRadians / angle
+        const axis = new THREE.Vector3(
+            worldDelta.x,
+            worldDelta.y,
+            worldDelta.z
+        );
+
+        if (axis.lengthSq() < 1e-10) return false;
+
+        axis.normalize();
+
+        worldDelta.setFromAxisAngle(
+            axis,
+            maxStepRadians
         );
     }
 
-    // Convert world-space rotation into local-space rotation.
-    const parentRotation = new THREE.Quaternion();
+    // Convert the world-space correction into joint-local space.
+    const parentWorldRotation = new THREE.Quaternion();
 
     if (joint.parent) {
-        joint.parent.getWorldQuaternion(parentRotation);
+        joint.parent.getWorldQuaternion(parentWorldRotation);
     }
 
-    const localRotation = parentRotation.clone()
+    const localDelta = parentWorldRotation.clone()
         .invert()
-        .multiply(worldRotation)
-        .multiply(parentRotation);
+        .multiply(worldDelta)
+        .multiply(parentWorldRotation);
 
-    joint.quaternion.premultiply(localRotation);
+    // Apply the incremental correction.
+    joint.quaternion.premultiply(localDelta);
 
     model.updateMatrixWorld(true);
 
     return true;
 }
+
+function applyJointRotationSafely({
+    model,
+    joint,
+    endEffector,
+    target,
+    maxStepRadians,
+    constrainJoint,
+    isPoseValid
+}) {
+    const originalRotation = joint.quaternion.clone();
+
+    const changed = calculateJointRotation(
+        model,
+        joint,
+        endEffector,
+        target,
+        maxStepRadians
+    );
+
+    if (!changed) return false;
+
+    // Apply the existing joint restrictions.
+    if (constrainJoint) {
+        constrainJoint(joint);
+        model.updateMatrixWorld(true);
+    }
+
+    const candidateRotation = joint.quaternion.clone();
+
+    // No collision validator supplied: preserve normal IK behavior.
+    if (!isPoseValid || isPoseValid(model)) {
+        return true;
+    }
+
+    // The full rotation causes a collision.
+    // Find the largest safe portion of that rotation.
+    let low = 0;
+    let high = 1;
+    let bestRotation = originalRotation.clone();
+
+    for (let i = 0; i < 10; i++) {
+        const middle = (low + high) / 2;
+
+        joint.quaternion.copy(originalRotation).slerp(
+            candidateRotation,
+            middle
+        );
+
+        model.updateMatrixWorld(true);
+
+        if (constrainJoint) {
+            constrainJoint(joint);
+            model.updateMatrixWorld(true);
+        }
+
+        if (isPoseValid(model)) {
+            low = middle;
+            bestRotation.copy(joint.quaternion);
+        } else {
+            high = middle;
+        }
+    }
+
+    // Keep the best collision-free rotation.
+    joint.quaternion.copy(bestRotation);
+    model.updateMatrixWorld(true);
+
+    return true;
+}
+
 
 export function solveIKChain({
     model,
@@ -83,7 +167,8 @@ export function solveIKChain({
     iterations = 20,
     tolerance = 0.005,
     maxStepDegrees = 15,
-    constrainJoint = null
+    constrainJoint = null,
+    isPoseValid = null
 }) {
     if (
         !model ||
@@ -118,25 +203,31 @@ export function solveIKChain({
 
     for (let iteration = 0; iteration < iterations; iteration++) {
 
-        // CCD works from the end of the chain toward its root.
+        // Process joints from the end effector toward the root.
         for (const joint of joints) {
 
-            calculateJointRotation(
+            applyJointRotationSafely({
                 model,
                 joint,
                 endEffector,
                 target,
-                maxStepRadians
-            );
+                maxStepRadians,
+                constrainJoint,
+                isPoseValid
+            });
 
-            if (constrainJoint) {
-                constrainJoint(joint);
-                model.updateMatrixWorld(true);
+            endEffector.getWorldPosition(endPosition);
+
+            // Stop processing joints when the target is reached.
+            if (endPosition.distanceTo(target) <= tolerance) {
+                break;
             }
         }
 
+        // Check the updated end-effector position.
         endEffector.getWorldPosition(endPosition);
 
+        // Stop the outer iteration loop when the target is reached.
         if (endPosition.distanceTo(target) <= tolerance) {
             break;
         }
