@@ -5,14 +5,11 @@
 // a valid sketch is present.
 let currentUserPose = null;
 
-lastMannequinPose = event.data.pose;
-
 window.addEventListener("message", (event) => {
     const frame = document.getElementById("mannequin-frame");
     if (event.source !== frame.contentWindow) return;
     if (!event.data || event.data.type !== "MANNEQUIN_POSE_CHANGED") return;
 
-    lastMannequinPose = event.data.pose;
     currentUserPose = event.data.pose;
     console.log("User pose updated:", currentUserPose);
 });

@@ -48,7 +48,7 @@ window.addEventListener("message", function (event) {
     // Save the new sketch pose or clear it if removed
     window.sketchUploadPoseJson = message.pose;
 
-        // INTEGRATION FIX:
+    // INTEGRATION FIX:
     // Share the sketch pose with Maryam's search controller.
     if (typeof currentUserPose !== "undefined") {
 
