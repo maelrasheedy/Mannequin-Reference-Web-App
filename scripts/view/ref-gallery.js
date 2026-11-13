@@ -54,13 +54,37 @@ if (downloadButton) {
     downloadButton.addEventListener("click", downloadViewerImage);
 }
 
-function openImageViewer(result) {
-    if (!imageViewer || !enlargedImage) return;
-    viewerResult = result;
-    enlargedImage.src = cloudinaryResized(result.url, 1600);
-    enlargedImage.alt = `Reference image ${result.id}`;
-    imageViewer.showModal();
-}
+   // Width of the enlarged picture. 1200 is plenty sharp for the viewer and
+   // downloads noticeably faster than 1600.
+   const VIEWER_WIDTH = 1200;
+
+   // Start downloading the big version before the user clicks (see the hover
+   // listeners in renderGallery). Remembering what we've asked for avoids repeats.
+   const preloadedViewerImages = new Set();
+   function preloadEnlarged(result) {
+       const src = cloudinaryResized(result.url, VIEWER_WIDTH);
+       if (preloadedViewerImages.has(src)) return;
+       preloadedViewerImages.add(src);
+       new Image().src = src;
+   }
+
+   function openImageViewer(result) {
+       if (!imageViewer || !enlargedImage) return;
+       viewerResult = result;
+       enlargedImage.alt = `Reference image ${result.id}`;
+
+       // Show the small thumbnail right away (it is already loaded), then swap in
+       // the sharp version as soon as it has finished downloading.
+       enlargedImage.src = cloudinaryResized(result.url, 400);
+       const sharpSrc = cloudinaryResized(result.url, VIEWER_WIDTH);
+       const loader = new Image();
+       loader.onload = () => {
+           if (viewerResult === result) enlargedImage.src = sharpSrc;
+       };
+       loader.src = sharpSrc;
+
+       imageViewer.showModal();
+   }
 
 if (closeViewerButton && imageViewer) {
     closeViewerButton.addEventListener("click", () => imageViewer.close());
@@ -92,6 +116,9 @@ function renderGallery(results) {
         );
         button.title = `Pose difference: ${result.score}°`;
         button.addEventListener("click", () => openImageViewer(result));
+
+        button.addEventListener("pointerenter", () => preloadEnlarged(result));
+        button.addEventListener("focus", () => preloadEnlarged(result));
 
         const img = document.createElement("img");
         img.loading = "lazy";

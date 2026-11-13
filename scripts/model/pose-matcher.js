@@ -36,7 +36,7 @@
   //newest weights increase legs and arms
   const WEIGHTS = {
     torso: 2,
-    neck: 1,
+    neck: 0.5,
     left_shoulder: 1.25, left_elbow: 1.25, left_wrist: 0.6,
     right_shoulder: 1.25, right_elbow: 1.25, right_wrist: 0.6,
     left_hip: 1.5, left_knee: 1.5, left_ankle: 0.75,

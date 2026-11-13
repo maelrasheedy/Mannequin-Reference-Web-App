@@ -12221,69 +12221,87 @@
     "pose_vector": [
       {
         "name": "torso",
-        "x-plane-angle": -4.4,
-        "y-plane-angle": -85.0,
-        "z-plane-angle": 2.4
+        "x-plane-angle": 1.6,
+        "y-plane-angle": -85.4,
+        "z-plane-angle": 4.4
       },
       {
         "name": "neck",
-        "x-plane-angle": 0.5,
-        "y-plane-angle": -78.6,
-        "z-plane-angle": -11.4
+        "x-plane-angle": 2.8,
+        "y-plane-angle": -80.3,
+        "z-plane-angle": 9.3
       },
       {
         "name": "left_shoulder",
-        "x-plane-angle": 23.6,
-        "y-plane-angle": 65.1,
-        "z-plane-angle": -7.6
+        "x-plane-angle": -8.7,
+        "y-plane-angle": 43.4,
+        "z-plane-angle": 45.3
       },
       {
         "name": "left_elbow",
-        "x-plane-angle": 23.2,
-        "y-plane-angle": 46.2,
-        "z-plane-angle": -34.7
+        "x-plane-angle": -0.7,
+        "y-plane-angle": 40.2,
+        "z-plane-angle": -49.8
       },
       {
         "name": "left_wrist",
-        "x-plane-angle": 47.6,
-        "y-plane-angle": 38.7,
-        "z-plane-angle": -14.6
+        "x-plane-angle": -5.8,
+        "y-plane-angle": 35.7,
+        "z-plane-angle": -53.7
+      },
+      {
+        "name": "right_shoulder",
+        "x-plane-angle": -12.8,
+        "y-plane-angle": 52.8,
+        "z-plane-angle": -34.3
+      },
+      {
+        "name": "right_elbow",
+        "x-plane-angle": -2.3,
+        "y-plane-angle": 6.8,
+        "z-plane-angle": -82.9
+      },
+      {
+        "name": "right_wrist",
+        "x-plane-angle": 6.0,
+        "y-plane-angle": 9.3,
+        "z-plane-angle": -78.9
       },
       {
         "name": "left_hip",
-        "x-plane-angle": 8.3,
-        "y-plane-angle": 60.0,
-        "z-plane-angle": -28.6
+        "x-plane-angle": 18.4,
+        "y-plane-angle": 59.3,
+        "z-plane-angle": -23.7
       },
       {
         "name": "left_knee",
-        "x-plane-angle": -1.1,
-        "y-plane-angle": 83.9,
-        "z-plane-angle": 6.0
+        "x-plane-angle": 10.6,
+        "y-plane-angle": 76.9,
+        "z-plane-angle": 7.7
       },
       {
         "name": "left_ankle",
-        "x-plane-angle": 31.2,
-        "y-plane-angle": 18.0,
-        "z-plane-angle": -53.0
+        "x-plane-angle": 22.3,
+        "y-plane-angle": 23.5,
+        "z-plane-angle": -56.6
       },
       {
         "name": "right_hip",
-        "x-plane-angle": 0.7,
-        "y-plane-angle": 88.7,
-        "z-plane-angle": -1.2
+        "x-plane-angle": -4.4,
+        "y-plane-angle": 83.9,
+        "z-plane-angle": 4.2
       },
       {
         "name": "right_knee",
-        "x-plane-angle": 3.4,
-        "y-plane-angle": 78.1,
-        "z-plane-angle": 11.4
+        "x-plane-angle": -4.2,
+        "y-plane-angle": 84.1,
+        "z-plane-angle": 4.2
       },
       {
         "name": "right_ankle",
-        "x-plane-angle": 24.9,
-        "y-plane-angle": 24.6,
-        "z-plane-angle": -53.7
+        "x-plane-angle": -14.2,
+        "y-plane-angle": 22.5,
+        "z-plane-angle": -62.9
       }
     ]
   },
