@@ -10,3 +10,5 @@ assets/image_set/dataset.py
 
 # Local backup copies of the metadata (all hyphenated versions)
 assets/metadata/images-metadata-*.json
+python/pose_landmarker_heavy.task
+
