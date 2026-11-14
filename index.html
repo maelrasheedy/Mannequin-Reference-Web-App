@@ -8,28 +8,30 @@
     <title>Mannequin Reference</title>
 
     <!-- CSS files linked here -->
+    <link rel="stylesheet" href="styles/fonts.css">
     <link rel="stylesheet" href="styles/tokens.css">
     <link rel="stylesheet" href="styles/base.css">
 </head>
 
 <body>
 
-    <!-- nav for TABS: a workspace tab and a help tab -->
-    <nav id="tabs" role="tablist" aria-label="Main Sections">
-        <button type="button" role="tab" id="tab-workspace"
-            aria-controls="panel-workspace" aria-selected="true">Workspace</button>
-        <button type="button" role="tab" id="tab-help"
-            aria-controls="panel-help" aria-selected="false">Help</button>
-        <button type="button" role="tab" id="tab-terms"
-            aria-controls="panel-terms" aria-selected="false">Terms &amp; Legal</button>
-        <button type="button" role="tab" id="tab-copyright"
-            aria-controls="panel-copyright" aria-selected="false">Copyright</button>
-        <button type="button" role="tab" id="tab-about"
-            aria-controls="panel-about" aria-selected="false">About</button>
-    </nav>
-
+    <!-- header for TABS and title-->
     <header id="app-header">
         <h1>Mannequin Reference</h1>
+
+        <!-- nav for TABS: a workspace tab and a help tab -->
+        <nav id="tabs" role="tablist" aria-label="Main Sections">
+            <button type="button" role="tab" id="tab-workspace"
+                aria-controls="panel-workspace" aria-selected="true">Workspace</button>
+            <button type="button" role="tab" id="tab-help"
+                aria-controls="panel-help" aria-selected="false">Help</button>
+            <button type="button" role="tab" id="tab-terms"
+                aria-controls="panel-terms" aria-selected="false">Terms &amp; Legal</button>
+            <button type="button" role="tab" id="tab-copyright"
+                aria-controls="panel-copyright" aria-selected="false">Copyright</button>
+            <button type="button" role="tab" id="tab-about"
+                aria-controls="panel-about" aria-selected="false">About</button>
+        </nav>
     </header>
 
     <!-- MAIN workspace tab -->
@@ -62,6 +64,8 @@
                         title="3D mannequin preview"
                     ></iframe>
 
+                <button type="button" id="reset-pose-button">Reset Pose</button>
+
                 </div>
 
             </section>
@@ -83,7 +87,6 @@
         <section id="search-results">
 
             <button type="button" id="search-button">Search</button> <!--remove disabled attribute (maryam)-->
-            <button type="button" id="reset-pose-button">Reset Pose</button>
 
             <div id="results-gallery" aria-label="Reference Image Results">
                 <div id="gallery-grid">
@@ -114,27 +117,20 @@
         <h2>Help</h2>
 
         <h3>Using the Mannequin</h3>
-        <p>
-            Mannequin controls allow you to rotate, bend, and tilt the 3D model
-            to view it from different angles. After adjusting the mannequin
-            to your desired pose, click the “Search” button to find reference
-            images that match the mannequin’s pose.
-        </p>
+        <p>Mannequin controls allow you to rotate, bend, and tilt the 3D model's limbs and view it from different angles.
+            After adjusting the mannequin to your desired pose, click the <em>Search</em> button to find reference
+            images that match the mannequin’s pose.</p>
 
         <h3>Uploading Your Sketch</h3>
-        <p>
-            To upload your own sketch, click the “Upload” button in the right
-            column and select an image from your device. Once uploaded,
-            you can view and edit your sketch before searching for reference
-            images that match the pose in your sketch.
-        </p>
+        <p>Upload function allows you to upload a sketch to improve your figure drawing skills. 
+            To upload your own sketch, click the <em>Upload</em> button in the right box and select an image from your
+            device. Once uploaded, the system will detect the pose in your sketch and implement it onto the mannequin. 
+            After the figure has your desired pose, click the <em>Search</em> button to find reference 
+            images that match your sketch.</p>
 
         <h3>Searching for Reference Images</h3>
-        <p>
-            Once you have adjusted the mannequin or uploaded a sketch,
-            click the “Search” button to find reference images
-            that match your pose.
-        </p>
+        <p>Once you have adjusted the mannequin or uploaded a sketch, click the <em>Search</em> button to find reference
+            images that match your desired pose. Images are sectioned in descending order from closest matches to least accurate matches.</p>
 
     </section>
 
@@ -143,56 +139,49 @@
         aria-labelledby="tab-about" hidden>
 
         <h2>About</h2>
-
-        <p>
-            For our senior capstone project at the University of Houston -
-            Clear Lake, our team has developed Mannequin Reference to provide
-            a comprehensive resource for artists and designers.
-        </p>
+        <p>For our senior capstone project at the university of Houston - Clear Lake, our team Maquette Three has developed the
+            Mannequin Reference Website to streamline reference image search for artists by providing an 
+            interactive browser-based digital workstation designed for instant anatomical and pose reference retrieval.</p>
+            <br>
+            Currently, the Mannequin Reference Website has ~930 reference images, leading to some
+            limitations in the range of poses available.
+            <br>
 
         <div class="team">
-
             <article class="member">
+                <h3>Meet Rosibel</h3>
                 <img
                     src="assets/about_tab_images/rosibel.jpg"
                     alt="Photo of Rosibel"
                     width="140"
                     height="140"
                 >
-                <div>
-                    <h3>Meet Rosibel</h3>
-                    <p>Text goes here...</p>
-                </div>
+                <p>Text goes here...</p>
             </article>
 
             <article class="member">
-                <img
-                    src="assets/about_tab_images/anthony.jpg"
-                    alt="Photo of Anthony"
-                    width="140"
-                    height="140"
-                >
-                <div>
-                    <h3>Meet Anthony</h3>
-                    <p>Text goes here...</p>
-                </div>
-            </article>
-
-            <article class="member">
+                <h3>Meet Maryam</h3>
                 <img
                     src="assets/about_tab_images/maryam.jpg"
                     alt="Photo of Maryam"
                     width="140"
                     height="140"
                 >
-                <div>
-                    <h3>Meet Maryam</h3>
-                    <p>Text goes here...</p>
-                </div>
+                <p>Text goes here...</p>
             </article>
 
+            <article class="member">
+                <h3>Meet Anthony</h3>
+                <img
+                    src="assets/about_tab_images/anthony.jpg"
+                    alt="Photo of Anthony"
+                    width="140"
+                    height="140"
+                >
+                <p>Text goes here...</p>
+            </article>
         </div>
-
+            
     </section>
 
     <!-- TERMS & LEGAL tab -->
@@ -225,7 +214,7 @@
 
         <h3>3. Availability, warranties, and liability</h3>
         <p>
-            The service and all metadata are provided “as is” and “as available.”
+            The service and all metadata are provided <em>"as is"</em> and <em>"as available"</em>.
             Mannequin Reference does not guarantee availability, accuracy,
             fitness for a particular purpose, ownership, license status,
             or non-infringement. To the fullest extent permitted by applicable
@@ -263,6 +252,64 @@
         <p class="callout">
             If you report a copyright infringement, we will act on it.
         </p>
+
+
+        <h3>Credits</h3>
+        
+        <p>This Mannequin Reference Website was conceptualized before the existance of 
+            <a href="https://bodyangle.com/">Body Angle</a>, but the general idea is still credited to:</p>
+        <ul>
+            <li><a href = "https://angleref.com/">Angle Ref Website</a> by
+            <a href= "https://www.instagram.com/stroudxyz/">Will Stroud</a></li>
+        </ul>
+
+        <p>Reference images used on MannequinReference are sourced from:</p>
+        <ul>
+            <li><a href="https://unsplash.com/">Unsplash.com</a></li>
+            <li><a href="https://stocksnap.io/">Stocksnap.io</a></li>
+            <li><a href="https://pixabay.com/">Pixabay.com</a></li>
+            <li><a href="https://www.magnific.com/">Magnific.com</a></li>
+            <li><a href="https://www.pexels.com/">Pexels.com</a></li>
+        </ul>
+        
+        <p>Other Dependencies:</p>
+        <ul>
+        <li><a target="_blank" rel="noopener noreferrer"
+                href="https://ai.google.dev/mediapipe/solutions/vision/pose_landmarker">MediaPipe Pose Landmarker</a>
+                (BlazePose GHUM 3D) from Google, used under the
+                <a target="_blank" rel="noopener noreferrer"
+                href="https://www.apache.org/licenses/LICENSE-2.0">Apache License 2.0</a>
+        </li>
+        <li><a target="_blank" rel="noopener noreferrer"
+                   href="https://threejs.org">three.js</a>
+                (&copy; three.js authors) used under the
+                <a target="_blank" rel="noopener noreferrer"
+                   href="https://github.com/mrdoob/three.js/blob/dev/LICENSE">MIT License</a>
+        </li>
+        <li>
+                &ldquo;Wooden Artist Mannequin&rdquo; 3D model by
+                <a target="_blank" rel="noopener noreferrer"
+                   href="https://sketchfab.com/Smoggybeard">Smoggybeard</a>
+                on
+                <a target="_blank" rel="noopener noreferrer"
+                   href="https://sketchfab.com/3d-models/wooden-artist-mannequin-be47b21c2e8f4a0f975e89a9c50a4aa5">Sketchfab</a>
+        </li>
+        <li>
+            <a target="_blank" rel="noopener noreferrer"
+            href="https://icons8.com/icon/11655/hand-cursor">Hand Cursor Click</a>
+            icon by
+            <a target="_blank" rel="noopener noreferrer"
+            href="https://icons8.com">Icons8</a>
+        </li>
+        <li>
+            <a target="_blank" rel="noopener noreferrer"
+            href="https://icons8.com/icon/TdbpMMmYMvER/cursor">Arrow Cursor</a>
+            icon by
+            <a target="_blank" rel="noopener noreferrer"
+            href="https://icons8.com">Icons8</a>
+        </li>
+        </ul>
+        <!--end creadits scetion-->
 
         <h3>How to submit a DMCA takedown notice</h3>
 
@@ -321,16 +368,13 @@
             maelrasheedy@proton.me
         </p>
 
-        <!-- [TBD: name, mailing address, and email for copyright notices] -->
 
     </section>
 
     <!-- Load the main website tabs -->
     <script src="scripts/view/tabs.js"></script>
-
-    <!-- Handle mannequin controls -->
-    <!--removing these!!-->
-    <!--<script src="scripts/view/mannequin-controls.js"></script>-->
+    <!-- Check for WebGL support -->
+    <script src="scripts/view/webgl-check.js"></script>
 
     <!-- Maryam's reference image matching and gallery -->
     <script src="scripts/model/pose-matcher.js"></script>

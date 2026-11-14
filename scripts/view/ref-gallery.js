@@ -27,6 +27,20 @@ function cloudinaryResized(url, width) {
     );
 }
 
+
+   // Thumbnails: Cloudinary crops to 3:4 around the most important area
+   // (c_auto + g_auto) so the person stays in the picture.
+   function cloudinaryThumbnail(url, width) {
+       if (!url.includes("res.cloudinary.com") || !url.includes("/upload/")) {
+           return url;
+       }
+       return url.replace(
+           "/upload/",
+           `/upload/c_auto,g_auto,ar_3:4,w_${width},q_auto,f_auto/`
+       );
+   }
+
+
 // Cloudinary can ask the browser to SAVE an image instead of showing it
 // Adding the fl_attachment flag makes it send a "download this file" header,
 // which also works across websites (the HTML "download" attribute does not).
@@ -75,7 +89,7 @@ if (downloadButton) {
 
        // Show the small thumbnail right away (it is already loaded), then swap in
        // the sharp version as soon as it has finished downloading.
-       enlargedImage.src = cloudinaryResized(result.url, 400);
+       enlargedImage.src = cloudinaryThumbnail(result.url, 400);
        const sharpSrc = cloudinaryResized(result.url, VIEWER_WIDTH);
        const loader = new Image();
        loader.onload = () => {
@@ -133,7 +147,7 @@ function createGalleryItem(result, number, total) {
 
     const img = document.createElement("img");
     img.loading = "lazy";
-    img.src = cloudinaryResized(result.url, 400);
+    img.src = cloudinaryThumbnail(result.url, 400);
     img.alt = `Reference image ${result.id}, match number ${number}`;
     button.appendChild(img);
 

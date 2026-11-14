@@ -1,0 +1,38 @@
+   @font-face {
+       font-family: "Roboto Slab";
+       src: url("../assets/fonts/RobotoSlab.ttf") format("truetype");
+       font-weight: 100 900;
+       font-display: swap;
+   }
+   @font-face {
+       font-family: "Tiny5 Duo";
+       src: url("../assets/fonts/Tiny5Duo-Regular.ttf") format("truetype");
+       font-weight: 400;
+       font-display: swap;
+   }
+   @font-face {
+       font-family: "Redaction 50";
+       src: url("../assets/fonts/Redaction50-Regular.ttf") format("truetype");
+       font-weight: 400;
+       font-display: swap;
+   }
+   @font-face {
+       font-family: "Redaction 50";
+       src: url("../assets/fonts/Redaction50-Bold.ttf") format("truetype");
+       font-weight: 700;
+       font-display: swap;
+   }
+
+      @font-face {
+       font-family: "Rubik Dirt";
+       src: url("../assets/fonts/RubikDirt-Regular.ttf") format("truetype");
+       font-weight: 700;
+       font-display: swap;
+   }
+
+      @font-face {
+       font-family: "Gravitas One";
+       src: url("../assets/fonts/GravitasOne-Regular.ttf") format("truetype");
+       font-weight: 700;
+       font-display: swap;
+   }

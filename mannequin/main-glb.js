@@ -10,7 +10,21 @@ import { solveIKChain } from './inverse_kinematic_rig.js';
 
 // Set up the mannequin scene
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a1a1a);
+
+
+// Match the sketch box: use the page's panel color (maryam)
+function applySceneBackground() {
+    const surface = getComputedStyle(document.documentElement)
+        .getPropertyValue("--color-surface")
+        .trim();
+    scene.background = new THREE.Color(surface || "#ffffff");
+}
+applySceneBackground();
+window
+    .matchMedia("(prefers-color-scheme: dark)")
+    .addEventListener("change", applySceneBackground);
+
+
 
 const camera = new THREE.PerspectiveCamera(
     60,
@@ -19,7 +33,23 @@ const camera = new THREE.PerspectiveCamera(
     1000
 );
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+
+// If the browser can't start WebGL, tell the main page so it can hide this
+// viewport and fall back to the sketch upload.
+let renderer;
+try {
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+} catch (error) {
+    if (window.parent !== window) {
+        window.parent.postMessage(
+            { type: "MANNEQUIN_WEBGL_UNAVAILABLE" },
+            window.location.origin
+        );
+    }
+    throw error; // nothing else in this file can run without WebGL
+}
+
+
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;

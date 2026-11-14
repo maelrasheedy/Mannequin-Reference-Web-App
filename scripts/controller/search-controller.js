@@ -28,6 +28,14 @@
         // one; if none has arrived yet, ask the mannequin for it.
         let pose = typeof currentUserPose === "undefined" ? null : currentUserPose;
 
+
+        // No WebGL means no mannequin to read a pose from!!!
+        if (!pose && document.documentElement.classList.contains("no-webgl")) {
+            setStatus("Upload a sketch first, then press Search.");
+            return;
+        }
+
+
         if (!pose && typeof requestMannequinPose === "function") {
             setStatus("Reading the mannequin's pose...");
             pose = await requestMannequinPose();

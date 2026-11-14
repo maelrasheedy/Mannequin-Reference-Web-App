@@ -454,7 +454,17 @@ confirmUpload.addEventListener("click", async function () {
         return;
     }
 
+
     uploadConfirmDialog.close();
+    // No WebGL means MediaPipe can't run, so stop before locking the controls
+    if (!hasWebGL()) {
+        clearInvalidSketchPose();
+        uploadMessage.classList.remove("loading");
+        uploadMessage.textContent =
+            "Your browser has WebGL turned off, so this sketch can't be analyzed. Please enable WebGL or try a different browser.";
+        return;
+    }
+
     setUploadLoading(true);
 
     confirmedImageFile = file;
@@ -470,6 +480,7 @@ confirmUpload.addEventListener("click", async function () {
     // Give each detection a number so old results can be ignored
     const imageBeingChecked = previewURL;
     const currentRunId = ++detectionRunId;
+
 
     function isCurrentImage() {
         return (
@@ -666,3 +677,9 @@ sketchUpload.addEventListener("cancel", function () {
         restoreConfirmedImage();
     }
 });
+
+//added by maryam to show a clear error message when no WebGL is available
+function hasWebGL() {
+  const canvas = document.createElement("canvas");
+  return !!(canvas.getContext("webgl2") || canvas.getContext("webgl"));
+}

@@ -1,7 +1,5 @@
 /*css file for base browser configuration*/
 
-
-
 /*count padding and borders inside an element's width*/
 *,
 *::before,
@@ -18,9 +16,10 @@ body {
 	font-family: var(--font-body);
 	font-size: var(--font-size-base);
 	line-height: var(--line-height);
-	background: var(--color-bg);
+    background: var(--color-bg);
 	color: var(--color-text);
 }
+
 
 h1, 
 h2 {
@@ -33,6 +32,16 @@ h1 {font-size: var(--font-size-title);}
 h2 {font-size: var(--font-size-large);}
 
 p {margin: 0 0 var(--space-2);}
+
+
+h1, h2, h3 {
+    font-family: var(--font-heading);
+}
+
+button {
+    font-family: var(--font-button);
+}
+
 
 img{
 	max-width: 100%;
@@ -89,23 +98,41 @@ button:disabled {
 /* The dark bar behind the tabs,
 colors are defined right here
 with a darker set for dark mode. */
-#tabs {
-    --tabbar-bg: #410f07; /*bg*/
-    --tab-bg: #942310; /*buttons*/
-    --tab-hover-bg: #EF7F6B;
-    --tab-text: #d8d8d8;
+  /* The bar across the top: the title on the left, the tabs on the right.
+     The colors are defined here, with a darker set for dark mode. */
+  #app-header {
+      --tabbar-bg: #410f07; /*bg*/
+      --tab-bg: #942310; /*buttons*/
+      --tab-hover-bg: #EF7F6B;
+      --tab-text: #d8d8d8;
 
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: flex-end;
-    gap: 4px;
-    padding: 10px 10px 0;
-    background: var(--tabbar-bg);
-}
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-end;      /* the tabs sit on the bottom edge of the bar */
+      gap: 4px 24px;
+      padding: 10px 20px 0;
+      background: var(--tabbar-bg);
+  }
+
+  #app-header h1 {
+      margin: 0;
+      padding-bottom: 6px;
+      align-self: center;
+      color: var(--tab-text);
+      line-height: 1;
+  }
+
+  #tabs {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      align-items: flex-end;
+      gap: 4px;
+  }
 
 @media (prefers-color-scheme: dark) {
-    #tabs {
+    #app-header {
         --tabbar-bg: #0D1B68; /*bg*/
         --tab-bg: #050F47; /*buttons*/
         --tab-hover-bg: #2e2e2e;
@@ -146,12 +173,6 @@ so it flows into the content */
 }
 
 
-/* Here I am centering the website title */
-#app-header {
-    text-align: center;
-    padding: 10px 0 20px;
-}
-
 /* Here I am keeping both sections equal without making them too large */
 #workspace-columns {
     display: grid;
@@ -182,6 +203,27 @@ so it flows into the content */
     aspect-ratio: 1 / 1;
     max-width: none;
     border: none;
+}
+
+
+/* Reset Pose sits in the top-right corner of the mannequin's box */
+#canvas-mount {
+    position: relative;
+}
+
+#reset-pose-button {
+    position: absolute;
+    bottom: var(--space-2);
+    left: var(--space-2);
+    z-index: 1;
+}
+
+
+/*adding the same rounded edges as the sketch box*/
+#canvas-mount iframe { 
+    box-sizing: border-box;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
 }
 
 /* Here I am keeping OR centered between both sections */
@@ -253,6 +295,10 @@ body {
     text-align: left;              /* long text reads better left-aligned */
 }
 
+#panel-about {
+    max-width: 1000px;
+}
+
 .info-panel h2 {
     text-align: center;
     margin-bottom: var(--space-3);
@@ -294,22 +340,31 @@ body {
     font-weight: bold;
 }
 
-/* About tab: one card per team member */
+
+/* About tab: three team member cards side by side */
 .team {
     display: grid;
+    grid-template-columns: repeat(3, 1fr);
     gap: var(--space-3);
     margin-top: var(--space-4);
 }
 
 .member {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;     /* heading, then photo, then text */
     align-items: center;
-    gap: var(--space-3);
+    text-align: center;
+    gap: var(--space-2);
     padding: var(--space-3);
     background: var(--color-surface);
     border: var(--border-width) solid var(--color-border);
     border-radius: var(--radius);
+    transition: transform 0.2s ease, box-shadow 0.2s ease; /*make the hover slow*/
+
+}
+
+.member h3 {
+    margin: 0;
 }
 
 .member img {
@@ -317,18 +372,36 @@ body {
     width: 140px;
     height: 140px;
     object-fit: cover;
-    border-radius: 50%;
+    border-radius: var(--radius);; /*rounded square image*/
 }
 
-.member div {
-    flex: 1 1 260px;          /* text drops under the photo on narrow screens */
+.member p {
+    margin: 0;
 }
 
-.member h3 {
-    margin-top: 0;
+/* Stack the cards on narrow screens so they don't get cramped */
+@media (max-width: 700px) {
+    .team {
+        grid-template-columns: 1fr;
+    }
 }
 
 
+/* The card lifts up slightly when the cursor is over it */
+.member:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 8px 18px color-mix(in srgb, var(--color-text) 25%, transparent);
+}
+
+/* Respect people who turned off animations in their system settings */
+@media (prefers-reduced-motion: reduce) {
+    .member {
+        transition: none;
+    }
+    .member:hover {
+        transform: none;
+    }
+}
 
 /* BEGINNING OF REFERENCE IMAGE GALLERY */
 #gallery-grid {
@@ -379,3 +452,62 @@ body {
     max-height: 80vh;
 }
 /* END OF REFERENCE IMAGE GALLERY */
+
+/* CURSORS: light mode first, then dark mode.
+   The two numbers after each filename are the "hot spot", the exact pixel that
+   does the clicking (the tip of the arrow or the fingertip). */
+html {
+    cursor: url("../assets/cursors/arrow-light.png") 10 7, auto;
+}
+
+a,
+button:not(:disabled),
+[role="tab"],
+.gallery-thumb,
+label,
+select,
+input[type="file"] {
+    cursor: url("../assets/cursors/arrow-click-light.png") 16 3, pointer;
+}
+
+button:disabled {
+    cursor: url("../assets/cursors/arrow-light.png") 10 7, not-allowed;
+}
+
+@media (prefers-color-scheme: dark) {
+    html {
+        cursor: url("../assets/cursors/arrow-dark.png") 10 7, auto;
+    }
+
+    a,
+    button:not(:disabled),
+    [role="tab"],
+    .gallery-thumb,
+    label,
+    select,
+    input[type="file"] {
+        cursor: url("../assets/cursors/arrow-click-dark.png") 16 3, pointer;
+    }
+
+    button:disabled {
+        cursor: url("../assets/cursors/arrow-dark.png") 10 7, not-allowed;
+    }
+}
+
+
+/* No WebGL: the 3D mannequin is hidden and the sketch upload stands alone */
+.no-webgl #viewport,
+.no-webgl #choice-or {
+    display: none;
+}
+
+.no-webgl #workspace-columns {
+    grid-template-columns: minmax(0, 600px);
+    justify-content: center;
+}
+
+#webgl-notice {
+    text-align: center;
+    max-width: 700px;
+    margin: var(--space-2) auto;
+}
