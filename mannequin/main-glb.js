@@ -117,6 +117,11 @@ const JOINT_LIMITS = {
         x: [-90, 90],
         y: [-8, 8],
         z: [-8, 8]
+    },
+    Pelvis_Pivot: {
+        x: [-30, 30],
+        y: [-35, 35],
+        z: [-25, 25]
     }
 };
 
@@ -124,6 +129,10 @@ const JOINT_LIMITS = {
 function getJointLimits(name) {
     if (/^(Index|Middle|Ring|Pinky|Thumb)_(Proximal|Middle|Distal)_/.test(name)) {
         return JOINT_LIMITS.Finger;
+    }
+
+    if (name === "Pelvis_Pivot") {
+    return JOINT_LIMITS.Pelvis_Pivot;
     }
 
     if (name === "Waist_Joint") {
@@ -172,16 +181,121 @@ function constrainJointRotation(joint) {
 // TORSO AND PELVIS COLLISION PREVENTION
 // ============================================================
 
-const COLLISION_SEGMENTS = [
-    { joint: "UpperArm_ScreenLeft", child: "Forearm_ScreenLeft", body: "Torso", skip: 0.45, radiusScale: 0.65 },
-    { joint: "Forearm_ScreenLeft", child: "Wrist_ScreenLeft", body: "Torso", skip: 0 },
-    { joint: "UpperArm_ScreenRight", child: "Forearm_ScreenRight", body: "Torso", skip: 0.45, radiusScale: 0.65 },
-    { joint: "Forearm_ScreenRight", child: "Wrist_ScreenRight", body: "Torso", skip: 0 },
 
+// ============================================================
+// FULL UPPER-BODY AND LIMB COLLISION PREVENTION
+// ============================================================
+
+const COLLISION_SEGMENTS = [
+    // LEFT ARM: upper arm
+    { joint: "UpperArm_ScreenLeft", child: "Forearm_ScreenLeft", body: "Torso", skip: 0.45, radiusScale: 0.65 },
+    { joint: "UpperArm_ScreenLeft", child: "Forearm_ScreenLeft", body: "Head", skip: 0.15 },
+    { joint: "UpperArm_ScreenLeft", child: "Forearm_ScreenLeft", body: "Waist_Joint", skip: 0.1 },
+    { joint: "UpperArm_ScreenLeft", child: "Forearm_ScreenLeft", body: "Pelvis", skip: 0.1 },
+
+    // LEFT ARM: forearm and wrist
+    { joint: "Forearm_ScreenLeft", child: "Wrist_ScreenLeft", body: "Torso", skip: 0 },
+    { joint: "Forearm_ScreenLeft", child: "Wrist_ScreenLeft", body: "Head", skip: 0 },
+    { joint: "Forearm_ScreenLeft", child: "Wrist_ScreenLeft", body: "Waist_Joint", skip: 0 },
+    { joint: "Forearm_ScreenLeft", child: "Wrist_ScreenLeft", body: "Pelvis", skip: 0 },
+
+    // RIGHT ARM: upper arm
+    { joint: "UpperArm_ScreenRight", child: "Forearm_ScreenRight", body: "Torso", skip: 0.45, radiusScale: 0.65 },
+    { joint: "UpperArm_ScreenRight", child: "Forearm_ScreenRight", body: "Head", skip: 0.15 },
+    { joint: "UpperArm_ScreenRight", child: "Forearm_ScreenRight", body: "Waist_Joint", skip: 0.1 },
+    { joint: "UpperArm_ScreenRight", child: "Forearm_ScreenRight", body: "Pelvis", skip: 0.1 },
+
+    // RIGHT ARM: forearm and wrist
+    { joint: "Forearm_ScreenRight", child: "Wrist_ScreenRight", body: "Torso", skip: 0 },
+    { joint: "Forearm_ScreenRight", child: "Wrist_ScreenRight", body: "Head", skip: 0 },
+    { joint: "Forearm_ScreenRight", child: "Wrist_ScreenRight", body: "Waist_Joint", skip: 0 },
+    { joint: "Forearm_ScreenRight", child: "Wrist_ScreenRight", body: "Pelvis", skip: 0 },
+
+    // LEFT ARM against legs
+    { joint: "UpperArm_ScreenLeft", child: "Forearm_ScreenLeft", body: "Thigh_ScreenLeft", skip: 0 },
+    { joint: "UpperArm_ScreenLeft", child: "Forearm_ScreenLeft", body: "Thigh_ScreenRight", skip: 0 },
+    { joint: "Forearm_ScreenLeft", child: "Wrist_ScreenLeft", body: "Thigh_ScreenLeft", skip: 0 },
+    { joint: "Forearm_ScreenLeft", child: "Wrist_ScreenLeft", body: "Thigh_ScreenRight", skip: 0 },
+    { joint: "Forearm_ScreenLeft", child: "Wrist_ScreenLeft", body: "Shin_ScreenLeft", skip: 0 },
+    { joint: "Forearm_ScreenLeft", child: "Wrist_ScreenLeft", body: "Shin_ScreenRight", skip: 0 },
+
+    // RIGHT ARM against legs
+    { joint: "UpperArm_ScreenRight", child: "Forearm_ScreenRight", body: "Thigh_ScreenLeft", skip: 0 },
+    { joint: "UpperArm_ScreenRight", child: "Forearm_ScreenRight", body: "Thigh_ScreenRight", skip: 0 },
+    { joint: "Forearm_ScreenRight", child: "Wrist_ScreenRight", body: "Thigh_ScreenLeft", skip: 0 },
+    { joint: "Forearm_ScreenRight", child: "Wrist_ScreenRight", body: "Thigh_ScreenRight", skip: 0 },
+    { joint: "Forearm_ScreenRight", child: "Wrist_ScreenRight", body: "Shin_ScreenLeft", skip: 0 },
+    { joint: "Forearm_ScreenRight", child: "Wrist_ScreenRight", body: "Shin_ScreenRight", skip: 0 },
+
+    // LEGS against pelvis
     { joint: "Thigh_ScreenLeft", child: "Shin_ScreenLeft", body: "Pelvis", skip: 0.22 },
     { joint: "Shin_ScreenLeft", child: "Ankle_ScreenLeft", body: "Pelvis", skip: 0 },
     { joint: "Thigh_ScreenRight", child: "Shin_ScreenRight", body: "Pelvis", skip: 0.22 },
-    { joint: "Shin_ScreenRight", child: "Ankle_ScreenRight", body: "Pelvis", skip: 0 }
+    { joint: "Shin_ScreenRight", child: "Ankle_ScreenRight", body: "Pelvis", skip: 0 },
+
+        // LEFT THIGH against RIGHT LEG
+    {
+        joint: "Thigh_ScreenLeft",
+        child: "Shin_ScreenLeft",
+        body: "Thigh_ScreenRight",
+        skip: 0.2,
+        radiusScale: 0.7
+    },
+    {
+        joint: "Thigh_ScreenLeft",
+        child: "Shin_ScreenLeft",
+        body: "Shin_ScreenRight",
+        skip: 0.2,
+        radiusScale: 0.7
+    },
+
+    // LEFT SHIN against RIGHT LEG
+    {
+        joint: "Shin_ScreenLeft",
+        child: "Ankle_ScreenLeft",
+        body: "Thigh_ScreenRight",
+        skip: 0.05,
+        radiusScale: 0.7
+    },
+    {
+        joint: "Shin_ScreenLeft",
+        child: "Ankle_ScreenLeft",
+        body: "Shin_ScreenRight",
+        skip: 0.05,
+        radiusScale: 0.7
+    },
+
+    // RIGHT THIGH against LEFT LEG
+    {
+        joint: "Thigh_ScreenRight",
+        child: "Shin_ScreenRight",
+        body: "Thigh_ScreenLeft",
+        skip: 0.2,
+        radiusScale: 0.7
+    },
+    {
+        joint: "Thigh_ScreenRight",
+        child: "Shin_ScreenRight",
+        body: "Shin_ScreenLeft",
+        skip: 0.2,
+        radiusScale: 0.7
+    },
+
+    // RIGHT SHIN against LEFT LEG
+    {
+        joint: "Shin_ScreenRight",
+        child: "Ankle_ScreenRight",
+        body: "Thigh_ScreenLeft",
+        skip: 0.05,
+        radiusScale: 0.7
+    },
+    {
+        joint: "Shin_ScreenRight",
+        child: "Ankle_ScreenRight",
+        body: "Shin_ScreenLeft",
+        skip: 0.05,
+        radiusScale: 0.7
+    }
 ];
 
 function getCollisionRadiusWorld(limb) {
@@ -197,7 +311,6 @@ function getCollisionRadiusWorld(limb) {
         new THREE.Vector3()
     );
 
-    // The limb's local X/Z dimensions describe its approximate cross-section.
     const localRadius = Math.min(size.x, size.z) * 0.5;
 
     const worldScale = limb.getWorldScale(
@@ -211,8 +324,24 @@ function getCollisionRadiusWorld(limb) {
     );
 }
 
+function isDescendantOf(object, ancestor) {
+    let current = object;
+
+    while (current) {
+        if (current === ancestor) {
+            return true;
+        }
+
+        current = current.parent;
+    }
+
+    return false;
+}
+
 function pointInsideBodyBoundary(worldPoint, body, radiusWorld) {
-    if (!body?.geometry) return false;
+    if (!body?.geometry || !worldPoint?.isVector3) {
+        return false;
+    }
 
     const geometry = body.geometry;
 
@@ -220,39 +349,53 @@ function pointInsideBodyBoundary(worldPoint, body, radiusWorld) {
         geometry.computeBoundingBox();
     }
 
-    const bounds = geometry.boundingBox;
+    if (geometry.boundingBox.isEmpty()) {
+        return false;
+    }
 
-    const center = bounds.getCenter(new THREE.Vector3());
-    const halfSize = bounds.getSize(new THREE.Vector3()).multiplyScalar(0.5);
+    body.updateWorldMatrix(true, false);
 
-    const bodyScale = body.getWorldScale(
-        new THREE.Vector3()
-    );
-
-    const minimumScale = Math.max(
-        0.00001,
-        Math.min(
-            Math.abs(bodyScale.x),
-            Math.abs(bodyScale.y),
-            Math.abs(bodyScale.z)
-        )
-    );
-
-    // Expand the boundary by the limb's collision radius.
-    const localRadius = radiusWorld / minimumScale;
-
-    const radii = halfSize.addScalar(localRadius);
-
+    // Transform the point into the body's local coordinate system.
     const localPoint = body.worldToLocal(
         worldPoint.clone()
     );
 
-    localPoint.sub(center);
+    const bounds = geometry.boundingBox;
 
+    const center = bounds.getCenter(new THREE.Vector3());
+    const halfSize = bounds.getSize(new THREE.Vector3())
+        .multiplyScalar(0.5);
+
+    const localPointFromCenter = localPoint.sub(center);
+
+    // Convert world collision radius into a conservative local radius.
+    const inverseWorldMatrix = new THREE.Matrix4()
+        .copy(body.matrixWorld)
+        .invert();
+
+    const inverseScale = new THREE.Vector3();
+
+    inverseWorldMatrix.decompose(
+        new THREE.Vector3(),
+        new THREE.Quaternion(),
+        inverseScale
+    );
+
+    const localRadius = radiusWorld * Math.max(
+        Math.abs(inverseScale.x),
+        Math.abs(inverseScale.y),
+        Math.abs(inverseScale.z)
+    );
+
+    const rx = Math.max(halfSize.x + localRadius, 0.00001);
+    const ry = Math.max(halfSize.y + localRadius, 0.00001);
+    const rz = Math.max(halfSize.z + localRadius, 0.00001);
+
+    // Ellipsoid boundary test.
     const normalizedDistance =
-        (localPoint.x / Math.max(radii.x, 0.00001)) ** 2 +
-        (localPoint.y / Math.max(radii.y, 0.00001)) ** 2 +
-        (localPoint.z / Math.max(radii.z, 0.00001)) ** 2;
+        (localPointFromCenter.x / rx) ** 2 +
+        (localPointFromCenter.y / ry) ** 2 +
+        (localPointFromCenter.z / rz) ** 2;
 
     return normalizedDistance < 1;
 }
@@ -262,6 +405,7 @@ function isMannequinPoseCollisionFree() {
 
     loadedModel.updateMatrixWorld(true);
 
+    // Check the existing arm and leg collision definitions.
     for (const segment of COLLISION_SEGMENTS) {
         const joint = loadedModel.getObjectByName(segment.joint);
         const child = loadedModel.getObjectByName(segment.child);
@@ -269,13 +413,8 @@ function isMannequinPoseCollisionFree() {
 
         if (!joint || !child || !body) continue;
 
-        const start = joint.getWorldPosition(
-            new THREE.Vector3()
-        );
-
-        const end = child.getWorldPosition(
-            new THREE.Vector3()
-        );
+        const start = joint.getWorldPosition(new THREE.Vector3());
+        const end = child.getWorldPosition(new THREE.Vector3());
 
         const radius =
             getCollisionRadiusWorld(joint) *
@@ -287,29 +426,78 @@ function isMannequinPoseCollisionFree() {
 
         if (direction.lengthSq() < 1e-10) continue;
 
-        // Check points along the limb, excluding the attachment area at the shoulder or hip.
-        for (let i = 0; i <= 12; i++) {
+        for (let i = 0; i <= 24; i++) {
             const t = segment.skip +
-                (1 - segment.skip) * (i / 12);
+                (1 - segment.skip) * (i / 24);
 
             const sample = start.clone().addScaledVector(
                 direction,
                 t
             );
+
+            if (pointInsideBodyBoundary(sample, body, radius)) {
+                return false;
+            }
+        }
+    }
+
+    // Check individual hand and finger meshes against the body.
+    const handBodies = [
+        "Head",
+        "Torso",
+        "Waist_Joint",
+        "Pelvis",
+        "Thigh_ScreenLeft",
+        "Thigh_ScreenRight",
+        "Shin_ScreenLeft",
+        "Shin_ScreenRight"
+    ];
+
+    const handParts = [];
+
+    loadedModel.traverse(object => {
+        if (
+            object.isMesh &&
+            /^(Wrist|Index|Middle|Ring|Pinky|Thumb)_.*_Screen(Left|Right)$/.test(
+                object.name
+            )
+        ) {
+            handParts.push(object);
+        }
+    });
+
+    for (const hand of handParts) {
+        const radius = getCollisionRadiusWorld(hand);
+
+        if (radius <= 0) continue;
+
+        const handPosition = hand.getWorldPosition(
+            new THREE.Vector3()
+        );
+
+        for (const bodyName of handBodies) {
+            const body = loadedModel.getObjectByName(bodyName);
+
+            if (!body) continue;
+
+            // Do not test a hand against its own mesh.
+            if (hand === body) continue;
+
+            // Ignore the hand's immediate attachment hierarchy.
+            if (
+                isDescendantOf(hand, body) &&
+                bodyName !== "Torso"
+            ) {
+                continue;
+            }
+
             if (
                 pointInsideBodyBoundary(
-                    sample,
+                    handPosition,
                     body,
-                    radius
+                    radius * 0.8
                 )
             ) {
-                console.warn(
-                    "Collision blocked:",
-                    segment.joint,
-                    "against",
-                    segment.body
-                );
-
                 return false;
             }
         }
@@ -327,6 +515,10 @@ function applyRotationWithCollision(joint, applyRotation) {
     constrainJointRotation(joint);
     loadedModel.updateMatrixWorld(true);
 
+    if (joint.name === "Waist_Joint") {
+        return true;
+    }
+
     if (isMannequinPoseCollisionFree()) {
         return true;
     }
@@ -337,7 +529,6 @@ function applyRotationWithCollision(joint, applyRotation) {
     let high = 1;
     let bestRotation = originalRotation.clone();
 
-    // Find the largest safe portion of the rotation.
     for (let i = 0; i < 10; i++) {
         const middle = (low + high) * 0.5;
 
@@ -362,7 +553,6 @@ function applyRotationWithCollision(joint, applyRotation) {
 
     return low > 0.001;
 }
-
 
 // ============================================================
 // TASK 4.5.9 - SKETCH POSE TO MANNEQUIN
@@ -1191,6 +1381,69 @@ function getClickedPart(event) {
     return hit ? hit.object : null;
 }
 
+function createPelvisPivot(model) {
+    const pelvis = model.getObjectByName("Pelvis");
+    const waist = model.getObjectByName("Waist_Joint");
+
+    if (!pelvis || !waist) {
+        console.error("Pelvis or Waist_Joint not found.");
+        return null;
+    }
+
+    model.updateMatrixWorld(true);
+
+    const parent = pelvis.parent;
+
+    if (!parent) {
+        console.error("Pelvis has no parent.");
+        return null;
+    }
+
+    // Record the center ball's world position.
+    const pivotPosition = waist.getWorldPosition(
+        new THREE.Vector3()
+    );
+
+    // Reuse an existing pivot or create one.
+    let pivot = model.getObjectByName("Pelvis_Pivot");
+
+    if (!pivot) {
+        pivot = new THREE.Group();
+        pivot.name = "Pelvis_Pivot";
+    }
+
+    // Make sure the pivot belongs to the pelvis's original parent.
+    if (pivot.parent !== parent) {
+        parent.attach(pivot);
+    }
+
+    // Position the pivot at the center ball.
+    pivot.position.copy(
+        parent.worldToLocal(pivotPosition.clone())
+    );
+
+    pivot.quaternion.identity();
+    pivot.scale.set(1, 1, 1);
+
+    // Put the pelvis and both legs under the pivot.
+    pivot.attach(pelvis);
+
+    // Move the center ball outside the pelvis hierarchy.
+    parent.attach(waist);
+
+    model.updateMatrixWorld(true);
+
+    console.log("PELVIS PIVOT:", pivot.name);
+    console.log("Pelvis parent:", pelvis.parent.name);
+    console.log("Waist parent:", waist.parent.name);
+    console.log(
+        "Pivot world position:",
+        pivot.getWorldPosition(new THREE.Vector3())
+    );
+
+    return pivot;
+}
+
 // Find which joint should move when a part is selected
 function findMovableJoint(clickedObject) {
     let object = clickedObject;
@@ -1201,6 +1454,14 @@ function findMovableJoint(clickedObject) {
 
         if (/^(Index|Middle|Ring|Pinky|Thumb)_(Proximal|Middle|Distal)_Screen(Left|Right)$/.test(name)) {
             return object;
+        }
+
+        if (name === "Torso") {
+            return loadedModel.getObjectByName("Waist_Joint");
+        }
+
+        if (name === "Pelvis") {
+            return loadedModel.getObjectByName("Pelvis_Pivot");
         }
 
         if (name.startsWith("Shoulder_")) {
@@ -1215,8 +1476,6 @@ function findMovableJoint(clickedObject) {
             targetName = name.replace("Hand_", "Wrist_");
         } else if (name.startsWith("Foot_")) {
             targetName = name.replace("Foot_", "Ankle_");
-        } else if (name === "Torso") {
-            targetName = "Waist_Joint";
         }
 
         if (/^(UpperArm_|Forearm_|Thigh_|Shin_|Wrist_|Ankle_|Neck$|Head$|Waist_Joint$)/.test(targetName)) {
@@ -1228,6 +1487,7 @@ function findMovableJoint(clickedObject) {
 
     return null;
 }
+
 
 // Find the hand selected for inverse kinematics
 function findIKHandSide(clickedObject) {
@@ -1542,6 +1802,14 @@ renderer.domElement.addEventListener("pointerdown", (event) => {
 
     const joint = findMovableJoint(clickedPart);
 
+    console.log("Clicked mesh:", clickedPart.name);
+    console.log("Selected joint:", joint?.name ?? "NONE");
+    console.log("Joint parent:", joint?.parent?.name ?? "NONE");
+
+    if (joint) {
+        console.log("Joint rotation:", joint.rotation);
+    }
+
     if (!joint) return;
 
     const hitPoint = getClickedWorldPoint(event);
@@ -1837,13 +2105,63 @@ function addMouth() {
 }
 
 
-// Load the Blender mannequin
-const loader = new GLTFLoader();
+    // Load the Blender mannequin
+    const loader = new GLTFLoader();
 
-loader.load(
-    "./models/mannequin_joint_fixes.glb",
-    (gltf) => {
-        loadedModel = gltf.scene;
+    loader.load(
+        "./models/mannequin_joint_fixes.glb",
+        (gltf) => {
+            loadedModel = gltf.scene;
+
+    createPelvisPivot(loadedModel);
+            
+    function inspectBodyHierarchy(model) {
+        const names = [
+            "Pelvis",
+            "Waist_Joint",
+            "Thigh_ScreenLeft",
+            "Thigh_ScreenRight",
+            "Shin_ScreenLeft",
+            "Shin_ScreenRight"
+        ];
+
+        for (const name of names) {
+            const object = model.getObjectByName(name);
+
+            if (!object) {
+                console.warn(`Missing object: ${name}`);
+                continue;
+            }
+
+            console.group(`HIERARCHY: ${name}`);
+            console.log("Object:", object);
+            console.log("Parent:", object.parent?.name);
+            console.log(
+                "World position:",
+                object.getWorldPosition(new THREE.Vector3())
+            );
+
+            console.log(
+                "Children:",
+                object.children.map(child => ({
+                    name: child.name,
+                    type: child.type,
+                    isMesh: child.isMesh
+                }))
+            );
+
+            let parent = object.parent;
+            while (parent) {
+                console.log("Ancestor:", parent.name, parent.type);
+                parent = parent.parent;
+            }
+
+            console.groupEnd();
+        }
+    }
+
+    inspectBodyHierarchy(loadedModel);
+
 
         // Print part names to help us check the Blender mapping
         loadedModel.traverse((part) => {

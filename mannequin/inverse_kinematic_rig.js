@@ -1,4 +1,4 @@
-// Limbs should be moving towards the mouse regardless of the camera angle. Fix Clipping issues on the model.
+
 import * as THREE from './three.js';
 
 function isDescendantOf(object, ancestor) {
@@ -12,6 +12,7 @@ function isDescendantOf(object, ancestor) {
     return false;
 }
 
+// Calculate a world-space rotation that moves the end effector toward the target.
 function calculateJointRotation(
     model,
     joint,
@@ -42,15 +43,16 @@ function calculateJointRotation(
     currentDirection.normalize();
     targetDirection.normalize();
 
-    // Calculate the required world-space correction.
     const worldDelta = new THREE.Quaternion()
         .setFromUnitVectors(currentDirection, targetDirection);
 
-    // Limit each rotation step.
     const angle = worldDelta.angleTo(
         new THREE.Quaternion()
     );
 
+    if (angle < 1e-6) return false;
+
+    // Limit the rotation step.
     if (angle > maxStepRadians) {
         const axis = new THREE.Vector3(
             worldDelta.x,
@@ -68,7 +70,7 @@ function calculateJointRotation(
         );
     }
 
-    // Convert the world-space correction into joint-local space.
+    // Convert world-space rotation into parent-local coordinates.
     const parentWorldRotation = new THREE.Quaternion();
 
     if (joint.parent) {
@@ -80,7 +82,6 @@ function calculateJointRotation(
         .multiply(worldDelta)
         .multiply(parentWorldRotation);
 
-    // Apply the incremental correction.
     joint.quaternion.premultiply(localDelta);
 
     model.updateMatrixWorld(true);
@@ -88,6 +89,7 @@ function calculateJointRotation(
     return true;
 }
 
+// Apply a rotation only when the resulting pose is collision-free.
 function applyJointRotationSafely({
     model,
     joint,
@@ -109,7 +111,7 @@ function applyJointRotationSafely({
 
     if (!changed) return false;
 
-    // Apply the existing joint restrictions.
+    // Apply joint restrictions before checking collisions.
     if (constrainJoint) {
         constrainJoint(joint);
         model.updateMatrixWorld(true);
@@ -117,19 +119,25 @@ function applyJointRotationSafely({
 
     const candidateRotation = joint.quaternion.clone();
 
-    // No collision validator supplied: preserve normal IK behavior.
-    if (!isPoseValid || isPoseValid(model)) {
+    // No collision validator supplied.
+    if (!isPoseValid) {
         return true;
     }
 
-    // The full rotation causes a collision.
-    // Find the largest safe portion of that rotation.
+    // Accept the complete rotation if it is safe.
+    if (isPoseValid(model)) {
+        return true;
+    }
+
+    // The candidate is unsafe. Search for a safe partial rotation.
     let low = 0;
     let high = 1;
-    let bestRotation = originalRotation.clone();
 
-    for (let i = 0; i < 10; i++) {
-        const middle = (low + high) / 2;
+    let bestRotation = originalRotation.clone();
+    let foundSafeRotation = false;
+
+    for (let i = 0; i < 14; i++) {
+        const middle = (low + high) * 0.5;
 
         joint.quaternion.copy(originalRotation).slerp(
             candidateRotation,
@@ -146,18 +154,24 @@ function applyJointRotationSafely({
         if (isPoseValid(model)) {
             low = middle;
             bestRotation.copy(joint.quaternion);
+            foundSafeRotation = true;
         } else {
             high = middle;
         }
     }
 
-    // Keep the best collision-free rotation.
-    joint.quaternion.copy(bestRotation);
+    // Never leave the joint in an invalid pose.
+    if (foundSafeRotation) {
+        joint.quaternion.copy(bestRotation);
+    } else {
+        joint.quaternion.copy(originalRotation);
+    }
+
     model.updateMatrixWorld(true);
 
-    return true;
+    return foundSafeRotation &&
+        originalRotation.angleTo(bestRotation) > 1e-6;
 }
-
 
 export function solveIKChain({
     model,
@@ -196,6 +210,12 @@ export function solveIKChain({
 
     model.updateMatrixWorld(true);
 
+    // Do not begin solving from an already-invalid pose.
+    if (isPoseValid && !isPoseValid(model)) {
+        console.warn("IK solver: Starting pose contains a collision.");
+        return false;
+    }
+
     const endPosition = new THREE.Vector3();
 
     const maxStepRadians =
@@ -218,16 +238,13 @@ export function solveIKChain({
 
             endEffector.getWorldPosition(endPosition);
 
-            // Stop processing joints when the target is reached.
             if (endPosition.distanceTo(target) <= tolerance) {
                 break;
             }
         }
 
-        // Check the updated end-effector position.
         endEffector.getWorldPosition(endPosition);
 
-        // Stop the outer iteration loop when the target is reached.
         if (endPosition.distanceTo(target) <= tolerance) {
             break;
         }
@@ -235,12 +252,15 @@ export function solveIKChain({
 
     endEffector.getWorldPosition(endPosition);
 
+    const distance = endPosition.distanceTo(target);
+
     return {
-        success: endPosition.distanceTo(target) <= tolerance,
-        distance: endPosition.distanceTo(target)
+        success: distance <= tolerance,
+        distance
     };
 }
 
+// Convenience function for hand IK.
 export function solveHandIK({
     model,
     shoulder,
@@ -249,8 +269,16 @@ export function solveHandIK({
     target,
     iterations = 20,
     tolerance = 0.005,
-    constrainElbow = null
+    maxStepDegrees = 15,
+    constrainElbow = null,
+    constrainJoint = null,
+    isPoseValid = null
 }) {
+    if (!shoulder || !elbow || !wrist) {
+        console.warn("Hand IK: Missing arm joints.");
+        return false;
+    }
+
     return solveIKChain({
         model,
         joints: [elbow, shoulder],
@@ -258,10 +286,18 @@ export function solveHandIK({
         target,
         iterations,
         tolerance,
+        maxStepDegrees,
+
         constrainJoint: joint => {
+            if (constrainJoint) {
+                constrainJoint(joint);
+            }
+
             if (joint === elbow && constrainElbow) {
                 constrainElbow(joint);
             }
-        }
+        },
+
+        isPoseValid
     });
 }
