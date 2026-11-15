@@ -1,5 +1,5 @@
 
-/* Here I am setting the font and background color for the webpage */
+/* Set up the upload page */
 html,
 body {
     width: 100%;
@@ -16,7 +16,7 @@ body {
     overflow: hidden;
 }
 
-/* In this code we are setting the appearance of the main heading */
+/* Style the upload heading */
 h1 {
     color: var(--color-text);
     font-size: 24px;
@@ -24,7 +24,7 @@ h1 {
     margin: 0 0 8px;
 }
 
-/* Here I am setting the instructions on thhe webpage */
+/* Style the upload instructions and messages */
 p {
     color: var(--color-text-muted);
     font-size: 14px;
@@ -32,35 +32,35 @@ p {
     margin: 0 0 10px;
 }
 
-/* Here I will be settign up the main upload area and make it look like a card */
+/* Center the upload controls inside the main section */
 main {
     box-sizing: border-box;
     background-color: var(--color-surface);
     color: var(--color-text);
-    border: 1px solid car(--color-border);
+    border: 1px solid var(--color-border);
     border-radius: 10px;
     box-shadow: none;
     width: 100%;
     max-width: none;
     height: 100%;
-    min-height: 0;
+    min-height: 80vh;
     margin: 0;
     padding: 18px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
+    gap: 12px;
+    text-align: center;
 }
 
-/* Here I will be adding spacing around the image upload field*/
+/* Hide the file input because clicking the upload box opens the file picker */
 #sketchUpload {
-    display: block;
-    margin: 8px auto;
-    padding: 5px;
-    max-width: 100%;
+    display: none;
 }
 
-/* In here we will be settingg up the area where the selected image will appear */
+/* Set up the area where the selected image appears */
 #previewContainer {
     width: 100%;
     min-height: 0;
@@ -68,17 +68,17 @@ main {
     margin-top: 8px;
 }
 
-/* Here I am controlling the size and appearance of the preview image */
+/* Keep the uploaded image inside the preview area without cropping */
 #imagePreview {
     max-width: 100%;
-    max-height: 220px;
+    max-height: 60vh;
     width: auto;
     height: auto;
     border-radius: 8px;
     object-fit: contain;
 }
 
-/* Here I am styling the buttons inside my upload section */
+/* Style the buttons in the upload section */
 button {
     background-color: #242b45;
     color: #ffffff;
@@ -92,23 +92,24 @@ button:hover {
     background-color: #354163;
 }
 
-/* Here I am making my uploaded image a little bigger while keeping it inside the upload box */
+/* Move the controls toward the top when an image is uploaded */
 main.has-image {
     padding: 10px;
+    justify-content: flex-start;
 }
 
-/* Here I am giving the image more room inside the upload section */
+/* Give the uploaded image more room inside the upload section */
 main.has-image #previewContainer {
     flex: 1;
     width: 100%;
-    min-height: 0;
+    min-height: 300px;
     display: flex;
     align-items: center;
     justify-content: center;
     margin: 0;
 }
 
-/* Here I am making the image use more of the available space without cropping it */
+/* Fit the uploaded image inside the available space */
 main.has-image #imagePreview {
     display: block;
     max-width: 100%;
@@ -118,15 +119,129 @@ main.has-image #imagePreview {
     object-fit: contain;
 }
 
-/* Here I am keeping the file input and Remove Image button centered */
+/* Keep the file input and Remove Image button centered */
 main.has-image #sketchUpload,
 main.has-image #removeImage {
     flex-shrink: 0;
     margin: 8px auto;
 }
 
-/* Here I am keeping the status message compact */
+/* Keep the status message from taking up extra space */
 main.has-image #uploadMessage {
     flex-shrink: 0;
     margin: 4px 0;
+}
+
+/* Hide the empty preview area before an image is selected */
+main:not(.has-image) #previewContainer {
+    display: none;
+}
+
+/* Make sure hidden elements stay hidden */
+[hidden] {
+    display: none !important;
+}
+
+/* Show a loading spinner while the image is being processed */
+#uploadMessage.loading::before {
+    content: "";
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    margin-right: 8px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    vertical-align: middle;
+    animation: uploadSpin 0.8s linear infinite;
+}
+
+/* Rotate the loading spinner */
+@keyframes uploadSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+main {
+    cursor: pointer;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+    /* Highlight the upload are when the mouse hovers over it */
+main:hover {
+    background-color: rgba(96, 165, 250, 0.08);
+    box-shadow: inset 0 0 0 2px rgba(96, 165, 250, 0.35);
+}
+
+/* Highlight the upload area when a file is dragged over it */
+main.drag-over {
+    outline: 3px dashed #60a5fa;
+    outline-offset: -8px;
+    box-shadow: inset 0 0 20px rgba(96, 165, 250, 0.15);
+    cursor: copy;
+}
+
+/* Style the image confirmation window */
+#uploadConfirmDialog {
+    background-color: #252525;
+    color: white;
+    border: 1px solid #555;
+    border-radius: 12px;
+    padding: 25px;
+    width: 90%;
+    max-width: 400px;
+    box-sizing: border-box;
+    text-align: center;
+    margin: auto;
+    font-family: inherit;
+}
+
+/* Darken the background when the confirmation window opens */
+#uploadConfirmDialog::backdrop {
+    background-color: rgba(0, 0, 0, 0.65);
+}
+
+/* Style the confirmation window heading */
+#uploadConfirmDialog h2 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    font-size: 22px;
+}
+
+/* Style the confirmation message */
+#uploadConfirmDialog p {
+    margin-bottom: 24px;
+    color: #dddddd;
+}
+
+/* Style the Upload and Cancel buttons */
+#uploadConfirmDialog button {
+    padding: 10px 22px;
+    margin: 5px;
+    border: none;
+    border-radius: 6px;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+/* Make the Upload button blue */
+#confirmUpload {
+    background-color: #2563eb;
+    color: white;
+}
+
+/* Make the Cancel button gray */
+#cancelUpload {
+    background-color: #555555;
+    color: white;
+}
+
+/* Change the button colors when the user hovers over them */
+#confirmUpload:hover {
+    background-color: #1d4ed8;
+}
+
+#cancelUpload:hover {
+    background-color: #707070;
 }

@@ -3,83 +3,73 @@
 <html lang="en">
 
 <head>
-    <meta charset = "UTF-8">
-    <meta name = "viewport" content = "width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Mannequin Reference</title>
 
-    <!-- CSS files linked here -------------------------------->
-        <link rel = "stylesheet" href = "styles/tokens.css">
-        <link rel = "stylesheet" href = "styles/base.css">
-    <!---------------------------------------------------------->
-
+    <!-- CSS files linked here -->
+    <link rel="stylesheet" href="styles/tokens.css">
+    <link rel="stylesheet" href="styles/base.css">
 </head>
 
 <body>
 
     <!-- nav for TABS: a workspace tab and a help tab -->
-    <nav id = "tabs" role = "tablist" aria-label = "Main Sections">
-        <button type = "button" role = "tab" id = "tab-workspace"
-            aria-controls = "panel-workspace" aria-selected = "true">Workspace</button>
-        <button type = "button" role = "tab" id = "tab-help"
-            aria-controls = "panel-help" aria-selected = "false">Help</button>
-        <button type = "button" role = "tab" id = "tab-terms"
-            aria-controls = "panel-terms" aria-selected = "false">Terms &amp; Legal</button>
-        <button type = "button" role = "tab" id = "tab-copyright"
-            aria-controls = "panel-copyright" aria-selected = "false">Copyright</button>
-        <button type = "button" role = "tab" id = "tab-about"
-            aria-controls = "panel-about" aria-selected = "false">About</button>
+    <nav id="tabs" role="tablist" aria-label="Main Sections">
+        <button type="button" role="tab" id="tab-workspace"
+            aria-controls="panel-workspace" aria-selected="true">Workspace</button>
+        <button type="button" role="tab" id="tab-help"
+            aria-controls="panel-help" aria-selected="false">Help</button>
+        <button type="button" role="tab" id="tab-terms"
+            aria-controls="panel-terms" aria-selected="false">Terms &amp; Legal</button>
+        <button type="button" role="tab" id="tab-copyright"
+            aria-controls="panel-copyright" aria-selected="false">Copyright</button>
+        <button type="button" role="tab" id="tab-about"
+            aria-controls="panel-about" aria-selected="false">About</button>
     </nav>
 
-    <header id = "app-header">
+    <header id="app-header">
         <h1>Mannequin Reference</h1>
     </header>
 
-    <!---------------------------MAIN workspace tab---------------------->
-    <main id = "panel-workspace" role = "tabpanel" aria-labelledby = "tab-workspace">
+    <!-- MAIN workspace tab -->
+    <main id="panel-workspace" role="tabpanel" aria-labelledby="tab-workspace">
 
-        <!-- banner for erros, warnings, success messages in workspace tab -->
-        <div id = "status-banner" role = "status" aria-live = "polite"></div>
+        <!-- banner for errors, warnings, success messages -->
+        <div id="status-banner" role="status" aria-live="polite"></div>
 
-        <!-- loading overlay which will cover WHOLE workspace --------------->
-        <div id = "loading-overlay" hidden>
-            <div id = "loading-spinner"></div>
+        <!-- loading overlay for the workspace -->
+        <div id="loading-overlay" hidden>
+            <div id="loading-spinner"></div>
             <p>Loading...</p>
         </div>
 
-        <!----------workspace columns---------------------------------------->
-        <div id = "workspace-columns">
+        <!-- workspace columns -->
+        <div id="workspace-columns">
 
-            <!-- Here I am adding an OR between the mannequin and sketch upload options -->
+            <!-- OR between the mannequin and sketch upload options -->
             <div id="choice-or">OR</div>
 
-            <!--Left column holds the mannequin viewport and whatever tools-->
-            <section id = "viewport" aria-label = "3D mannequin">
+            <!-- Left column holds the mannequin viewport -->
+            <section id="viewport" aria-label="3D mannequin">
 
                 <div id="canvas-mount">
 
-                    <!-- Here I am showing the 3D mannequin in a square on the left side -->
-
-                    <!-- Here I am letting the main CSS control the mannequin's size -->
+                    <!-- The main CSS controls the mannequin's size -->
                     <iframe
+                        id="mannequin-frame"
                         src="mannequin/index.html"
                         title="3D mannequin preview"
                     ></iframe>
 
                 </div>
 
-                <div id="tool-buttons">
-                    <!-- Here I am keeping only the mannequin controls underneath the 3D model -->
-                    <button type="button" id="rotate-button">Rotate</button>
-                    <button type="button" id="bend-button">Bend</button>
-                    <button type="button" id="tilt-button">Tilt</button>
-                </div>
-
             </section>
 
-            <!--Right column will hold the search button and results--------------->
-            <section id = "results-column" aria-label = "Search and Results">
+            <!-- Right column holds the sketch upload -->
+            <section id="results-column" aria-label="Search and Results">
 
-                <!-- Here I am letting the main CSS control the upload section's size -->
+                <!-- The main CSS controls the upload section's size -->
                 <iframe
                     src="image-upload/index.html"
                     title="Upload your own sketch"
@@ -87,58 +77,88 @@
 
             </section>
 
-        </div><!---------------------------end workspace columns---------------->
+        </div>
 
-        <!-- Here I am placing the Search button and reference gallery below both options -->
+        <!-- Search button and gallery below both options -->
         <section id="search-results">
+
             <button type="button" id="search-button" disabled>Search</button>
+            <button type="button" id="reset-pose-button">Reset Pose</button>
 
             <div id="results-gallery" aria-label="Reference Image Results">
                 <div id="gallery-grid">
-                    <p>Reference Image Results Gallery Will Go Here</p>
+                    <p>Click the Search button to see reference images...</p>
                 </div>
             </div>
+
         </section>
 
-        <!--enlarged image view: when user clicks a pic in the results gallery--->
-        <dialog id = "image-viewer" aria-label= "Enlarged Reference Image">
-            <img id = "enlarged-image" src = "" alt = "">
-            <div id = "viewer-buttons">
-                <button type = "button" id = "download-button">Download</button>
-                <button type = "button" id = "close-viewer-button">Close</button>
+        <!-- Enlarged image viewer for gallery results -->
+        <dialog id="image-viewer" aria-label="Enlarged Reference Image">
+
+            <img id="enlarged-image" src="" alt="">
+
+            <div id="viewer-buttons">
+                <button type="button" id="download-button">Download</button>
+                <button type="button" id="close-viewer-button">Close</button>
             </div>
+
         </dialog>
 
-    </main><!-------------------------end of main workspace tab -------------->
+    </main>
 
-       <!----------- HELP tab ----------->
-    <section id="panel-help" class="info-panel" role="tabpanel" aria-labelledby="tab-help" hidden>
+    <!-- HELP tab -->
+    <section id="panel-help" class="info-panel" role="tabpanel"
+        aria-labelledby="tab-help" hidden>
+
         <h2>Help</h2>
 
         <h3>Using the Mannequin</h3>
-        <p>Mannequin controls allow you to rotate, bend, and tilt the 3D model to view it from different angles.
-            After adjusting the mannequin to your desired pose, click the “Search” button to find reference
-            images that match the mannequin’s pose.</p>
+        <p>
+            Mannequin controls allow you to rotate, bend, and tilt the 3D model
+            to view it from different angles. After adjusting the mannequin
+            to your desired pose, click the “Search” button to find reference
+            images that match the mannequin’s pose.
+        </p>
 
         <h3>Uploading Your Sketch</h3>
-        <p>To upload your own sketch, click the “Upload” button in the right column and select an image from your
-            device. Once uploaded, you can view and edit your sketch before searching for reference images that
-            match the pose in your sketch.</p>
+        <p>
+            To upload your own sketch, click the “Upload” button in the right
+            column and select an image from your device. Once uploaded,
+            you can view and edit your sketch before searching for reference
+            images that match the pose in your sketch.
+        </p>
 
         <h3>Searching for Reference Images</h3>
-        <p>Once you have adjusted the mannequin or uploaded a sketch, click the “Search” button to find reference
-            images that match your pose.</p>
+        <p>
+            Once you have adjusted the mannequin or uploaded a sketch,
+            click the “Search” button to find reference images
+            that match your pose.
+        </p>
+
     </section>
 
-    <!----------- ABOUT tab ----------->
-    <section id="panel-about" class="info-panel" role="tabpanel" aria-labelledby="tab-about" hidden>
+    <!-- ABOUT tab -->
+    <section id="panel-about" class="info-panel" role="tabpanel"
+        aria-labelledby="tab-about" hidden>
+
         <h2>About</h2>
-        <p>For our senior capstone project at the University of Houston - Clear Lake, our team has developed
-            Mannequin Reference to provide a comprehensive resource for artists and designers.</p>
+
+        <p>
+            For our senior capstone project at the University of Houston -
+            Clear Lake, our team has developed Mannequin Reference to provide
+            a comprehensive resource for artists and designers.
+        </p>
 
         <div class="team">
+
             <article class="member">
-                <img src="assets/about_tab_images/rosibel.jpg" alt="Photo of Rosibel" width="140" height="140">
+                <img
+                    src="assets/about_tab_images/rosibel.jpg"
+                    alt="Photo of Rosibel"
+                    width="140"
+                    height="140"
+                >
                 <div>
                     <h3>Meet Rosibel</h3>
                     <p>Text goes here...</p>
@@ -146,7 +166,12 @@
             </article>
 
             <article class="member">
-                <img src="assets/about_tab_images/anthony.jpg" alt="Photo of Anthony" width="140" height="140">
+                <img
+                    src="assets/about_tab_images/anthony.jpg"
+                    alt="Photo of Anthony"
+                    width="140"
+                    height="140"
+                >
                 <div>
                     <h3>Meet Anthony</h3>
                     <p>Text goes here...</p>
@@ -154,94 +179,171 @@
             </article>
 
             <article class="member">
-                <img src="assets/about_tab_images/maryam.jpg" alt="Photo of Maryam" width="140" height="140">
+                <img
+                    src="assets/about_tab_images/maryam.jpg"
+                    alt="Photo of Maryam"
+                    width="140"
+                    height="140"
+                >
                 <div>
                     <h3>Meet Maryam</h3>
                     <p>Text goes here...</p>
                 </div>
             </article>
+
         </div>
+
     </section>
 
-    <!----------- TERMS & LEGAL tab ----------->
-    <section id="panel-terms" class="info-panel" role="tabpanel" aria-labelledby="tab-terms" hidden>
+    <!-- TERMS & LEGAL tab -->
+    <section id="panel-terms" class="info-panel" role="tabpanel"
+        aria-labelledby="tab-terms" hidden>
+
         <h2>Terms &amp; Legal</h2>
+
         <p class="effective-date">Effective date: November 16, 2026</p>
 
         <h3>1. Acceptance and permitted use</h3>
-        <p>By accessing or using Mannequin Reference, you agree to these terms. You may use the service to find
-            visual references, study poses, and create lawful work. Do not use the service to violate another
-            person’s rights, break the law, bypass security, disrupt the site, scrape it in a way that degrades
-            service, or misrepresent the source or license of an image.</p>
+        <p>
+            By accessing or using Mannequin Reference, you agree to these terms.
+            You may use the service to find visual references, study poses,
+            and create lawful work. Do not use the service to violate another
+            person’s rights, break the law, bypass security, disrupt the site,
+            scrape it in a way that degrades service, or misrepresent the
+            source or license of an image.
+        </p>
 
         <h3>2. People shown in photographs</h3>
-        <p>An open copyright license does not necessarily include a model release or grant privacy, publicity,
-            personality, trademark, or similar rights. Use extra care with recognizable people, children,
-            sensitive contexts, advertising, endorsements, and commercial uses. You are responsible for obtaining
-            any permissions your use requires.</p>
+        <p>
+            An open copyright license does not necessarily include a model
+            release or grant privacy, publicity, personality, trademark,
+            or similar rights. Use extra care with recognizable people,
+            children, sensitive contexts, advertising, endorsements,
+            and commercial uses. You are responsible for obtaining
+            any permissions your use requires.
+        </p>
 
         <h3>3. Availability, warranties, and liability</h3>
-        <p>The service and all metadata are provided “as is” and “as available.” Mannequin Reference does not
-            guarantee availability, accuracy, fitness for a particular purpose, ownership, license status, or
-            non-infringement. To the fullest extent permitted by applicable law, Mannequin Reference and its
-            creators are not liable for indirect, incidental, special, consequential, or punitive damages, or for
-            losses resulting from your use of the service or third-party content. Nothing here excludes liability
-            that cannot legally be excluded.</p>
+        <p>
+            The service and all metadata are provided “as is” and “as available.”
+            Mannequin Reference does not guarantee availability, accuracy,
+            fitness for a particular purpose, ownership, license status,
+            or non-infringement. To the fullest extent permitted by applicable
+            law, Mannequin Reference and its creators are not liable for
+            indirect, incidental, special, consequential, or punitive damages,
+            or for losses resulting from your use of the service or third-party
+            content. Nothing here excludes liability that cannot legally
+            be excluded.
+        </p>
 
         <h3>4. Third parties and changes to these terms</h3>
-        <p>Links to source repositories, creators, licensors, and other services are provided for convenience;
-            Mannequin Reference does not control their content or practices. These terms may be updated as the
-            service changes. The effective date above will be revised when material changes are published.
-            Continued use after an update means you accept the revised terms.</p>
+        <p>
+            Links to source repositories, creators, licensors, and other
+            services are provided for convenience; Mannequin Reference
+            does not control their content or practices. These terms may
+            be updated as the service changes. The effective date above
+            will be revised when material changes are published.
+            Continued use after an update means you accept the revised terms.
+        </p>
+
     </section>
 
-    <!----------- COPYRIGHT tab ----------->
-    <section id="panel-copyright" class="info-panel" role="tabpanel" aria-labelledby="tab-copyright" hidden>
+    <!-- COPYRIGHT tab -->
+    <section id="panel-copyright" class="info-panel" role="tabpanel"
+        aria-labelledby="tab-copyright" hidden>
+
         <h2>Copyright</h2>
-        <p>Mannequin Reference respects the intellectual property rights of others and responds to notices that
-            comply with the Digital Millennium Copyright Act (DMCA) and similar laws.</p>
-        <p class="callout">If you report a copyright infringement, we will act on it.</p>
+
+        <p>
+            Mannequin Reference respects the intellectual property rights
+            of others and responds to notices that comply with the
+            Digital Millennium Copyright Act (DMCA) and similar laws.
+        </p>
+
+        <p class="callout">
+            If you report a copyright infringement, we will act on it.
+        </p>
 
         <h3>How to submit a DMCA takedown notice</h3>
-        <p>If you believe material available through Mannequin Reference infringes your copyright, send a written
-            notice to our designated agent (see below). Under 17 U.S.C. § 512(c)(3), an effective notice must
-            include:</p>
+
+        <p>
+            If you believe material available through Mannequin Reference
+            infringes your copyright, send a written notice to our designated
+            agent (see below). Under 17 U.S.C. § 512(c)(3), an effective
+            notice must include:
+        </p>
+
         <ul>
-            <li>A physical or electronic signature of the copyright owner or a person authorized to act on the
-                owner’s behalf.</li>
-            <li>Identification of the copyrighted work claimed to have been infringed, or, if multiple works are
-                covered by a single notice, a representative list of those works.</li>
-            <li>Identification of the material claimed to be infringing and information reasonably sufficient to
-                permit us to locate it. The image URL or the link shown in the image’s source/attribution panel
-                works best.</li>
-            <li>Information reasonably sufficient to contact you, such as an address, telephone number, and email
-                address.</li>
-            <li>A statement that you have a good-faith belief that use of the material in the manner complained of
-                is not authorized by the copyright owner, its agent, or the law.</li>
-            <li>A statement that the information in the notice is accurate and, under penalty of perjury, that you
-                are authorized to act on behalf of the owner of an exclusive right that is allegedly infringed.</li>
+            <li>
+                A physical or electronic signature of the copyright owner
+                or a person authorized to act on the owner’s behalf.
+            </li>
+
+            <li>
+                Identification of the copyrighted work claimed to have been
+                infringed, or, if multiple works are covered by a single
+                notice, a representative list of those works.
+            </li>
+
+            <li>
+                Identification of the material claimed to be infringing and
+                information reasonably sufficient to permit us to locate it.
+                The image URL or the link shown in the image’s
+                source/attribution panel works best.
+            </li>
+
+            <li>
+                Information reasonably sufficient to contact you, such as
+                an address, telephone number, and email.
+            </li>
+
+            <li>
+                A statement that you have a good-faith belief that use of
+                the material in the manner complained of is not authorized
+                by the copyright owner, its agent, or the law.
+            </li>
+
+            <li>
+                A statement that the information in the notice is accurate,
+                and under penalty of perjury, that you are authorized to
+                act on behalf of the owner of an exclusive right that is
+                allegedly infringed.
+            </li>
         </ul>
 
         <h3>Designated agent</h3>
-        <p>Maryam El-Rasheedy<br>
-           University of Houston-Clear Lake<br>
-           2700 Bay Area Blvd Houston<br>
-           TX 77058<br>
-           maelrasheedy@proton.me</p>
-        <!--[TBD: name, mailing address, and email for copyright notices]-->
+
+        <p>
+            Maryam El-Rasheedy<br>
+            University of Houston-Clear Lake<br>
+            2700 Bay Area Blvd Houston<br>
+            TX 77058<br>
+            maelrasheedy@proton.me
+        </p>
+
+        <!-- [TBD: name, mailing address, and email for copyright notices] -->
+
     </section>
 
-    <!-------------------------where the javascript files will remain----->
-    <script src= "scripts/view/tabs.js"></script>
+    <!-- Load the main website tabs -->
+    <script src="scripts/view/tabs.js"></script>
 
-</body>
-</html>
+    <!-- Handle mannequin controls -->
+    <!-- <script src="scripts/view/mannequin-controls.js"></script> -->
 
-        </ul>
-    </section>
+    <!-- Maryam's reference image matching and gallery -->
+    <script src="scripts/model/pose-matcher.js"></script>
+    <script src="scripts/view/ref-gallery.js"></script>
 
-    <!-------------------------where the javascript files will remain----->
-    <script src= "scripts/view/tabs.js"></script>
+    <!-- Initialize the shared pose variable FIRST -->
+    <script src="scripts/controller/pose-controller.js"></script>
+
+    <!-- INTEGRATION FIX:
+         Receive Rosie's sketch pose after the pose controller is loaded -->
+    <script src="scripts/view/sketch-upload-bridge.js"></script>
+
+    <!-- Search now has access to the shared pose -->
+    <script src="scripts/controller/search-controller.js"></script>
 
 </body>
 </html>

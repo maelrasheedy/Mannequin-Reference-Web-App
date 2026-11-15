@@ -8,6 +8,9 @@ import {
     MESH_JOINT_MAPPING
 } from './mannequinRig.js';
 
+//teaching main.js to measure the mannequin for pose detection (from maryam)
+import { poseFromRig } from './pose-vector.js';
+
 const scene = new THREE.Scene();
 //maryam commented out this color
 //scene.background = new THREE.Color(0x1a1a1a); 
@@ -60,6 +63,32 @@ let loadedModel = null;
 let selectedJointKey = null;
 let highlightedMesh = null;
 let previousMaterial = null;
+
+
+//get bones positins for mannequin pose detection (maryam)
+const _tmp = new THREE.Vector3();
+
+function getBonePosition(boneName) {//asks the 3d scene where the bone is
+    const bone = loadedModel.getObjectByName(boneName);
+    if (!bone) return null;
+    loadedModel.updateMatrixWorld(true);
+    bone.getWorldPosition(_tmp);
+    loadedModel.worldToLocal(_tmp);   // measure relative to the mannequin, not the camera
+    return { x: _tmp.x, y: _tmp.y, z: _tmp.z };
+}
+
+function sendPose() {//turns bone positins into JSON and posts to main page 
+    if (!loadedModel) return;
+    const pose = poseFromRig(getBonePosition);
+    if (!pose) {
+        console.warn("Could not read every joint from the mannequin.");
+        return;
+    }
+    window.parent.postMessage(
+        { type: "MANNEQUIN_POSE_CHANGED", pose: pose },
+        window.location.origin
+    );
+}// end of get bones positions (maryam)
 
 // Raycasting Infrastructure
 const raycaster = new THREE.Raycaster();
@@ -222,6 +251,9 @@ loader.load(
     }
 );
 
+sendPose(); //called after every pose chnage (called after initial load)(maryam)
+
+
 // Global Reset Function to Restore Original T-Pose Geometry
 export function resetPose() {
     Object.keys(joints).forEach((key) => {
@@ -241,6 +273,8 @@ export function resetPose() {
     selectedJointKey = null;
     console.log('Mannequin skeleton reset to baseline initial coordinates.');
 }
+
+sendPose(); //called after every pose change (called after resetting pose)(maryam)
 
 // Unified Joint Rotation Interface with Clamping Boundaries
 
@@ -329,6 +363,8 @@ export function rotateJoint(
         joint.getWorldPosition(new THREE.Vector3())
     );
 }
+
+sendPose(); //called when pose changes (after any joint rotation)(maryam)
 
 function clearJointHighlight() {
     if (highlightedMesh && previousMaterial) {
