@@ -10,3 +10,8 @@ assets/image_set/dataset.py
 
 # Local backup copies of the metadata (all hyphenated versions)
 assets/metadata/images-metadata-*.json
+python/pose_landmarker_heavy.task
+
+# Model comparison script of the HEAVY and FULL Mediapipe tasks (sticking with full so dont need anymore)
+python/compare_models.py
+

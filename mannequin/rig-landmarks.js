@@ -1,5 +1,5 @@
 // mannequin/rig-landmarks.js
-//
+// CURRENTLY UNUSED in this project!!!  
 // reads joint positions from the GLB mannequin as the user moves it.
 //
 // WHY THIS FILE EXISTS

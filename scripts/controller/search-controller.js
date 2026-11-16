@@ -12,7 +12,7 @@
  //(they all need to be loaded BEFORE this file)
 
 (function () {
-    const TOP_N = 20;
+    const TOP_N = 20; // the highest number of possible matches to the image gallery
 
     const searchButton = document.getElementById("search-button");
     const statusBanner = document.getElementById("status-banner");
@@ -82,30 +82,51 @@
 
     // The Search button works as soon as the mannequin has sent a pose.
     window.addEventListener("message", (event) => {
-        if (event.source !== mannequinFrame.contentWindow) return;
+        if (!mannequinFrame || event.source !== mannequinFrame.contentWindow) return;
         if (!event.data || event.data.type !== "MANNEQUIN_POSE_CHANGED") return;
         searchButton.disabled = false;
     });
 
-    searchButton.addEventListener("click", async () => {
-        if (typeof currentUserPose === "undefined" || !currentUserPose) {
-            setStatus("Pose the mannequin first, then press Search.");
+   
+searchButton.addEventListener("click", async () => {
+    // Use the most recently received pose.
+    let pose = typeof currentUserPose === "undefined"
+        ? null
+        : currentUserPose;
+
+    // Without WebGL, the mannequin cannot provide a pose.
+    if (!pose && document.documentElement.classList.contains("no-webgl")) {
+        setStatus("Upload a sketch first, then press Search.");
+        return;
+    }
+
+    // Maryam's improvement: request the mannequin pose if needed.
+    if (!pose && typeof requestMannequinPose === "function") {
+        setStatus("Reading the mannequin's pose...");
+
+        try {
+            pose = await requestMannequinPose();
+        } catch (error) {
+            console.error("Could not retrieve mannequin pose:", error);
+            setStatus("Could not read the mannequin's pose. Please try again.");
             return;
         }
+    }
 
-        // Task 5.6.8 - Stop Search if the pose is incomplete
-        if (!isCompletePose(currentUserPose)) {
-            const message =
-                "Incomplete pose detected. Please upload a clearer full-body image or reset the mannequin and try again.";
+    if (!pose) {
+        setStatus("The mannequin is still loading. Please try again in a moment.");
+        return;
+    }
 
-            setStatus(message);
-            showGalleryMessage(message);
-            return;
-        }
+    // Your improvement: validate all 14 joints before searching.
+    if (!isCompletePose(pose)) {
+        const message =
+            "Incomplete pose detected. Please upload a clearer full-body image or reset the mannequin and try again.";
 
-        // Search with the pose as it is right now.
-        const pose = currentUserPose;
-
+        setStatus(message);
+        showGalleryMessage(message);
+        return;
+    }
         searchButton.disabled = true;
         setStatus("Searching...");
 
@@ -113,9 +134,20 @@
             // Task 1.1.5 - Use the image data already saved in RAM
             const references = await window.ReferenceCache.loadReferences();
 
-            const matches = PoseMatcher.findMatches(pose, references, TOP_N);
-            renderGallery(matches);
+        const { groups } = PoseMatcher.search(pose, references, TOP_N);
+        renderGallery(groups.map((g) => ({ notice: noticeForLevel(g.level), matches: g.matches })));
+            // (level) based on whether there are ref image matches at 40 (great) 50 (good) 60 (um) none (no matches)
+        
             setStatus("");
+            // The message shown above the gallery, depending on how close the results are.
+            // (Edit the wording here.)
+        function noticeForLevel(level) {
+            if (level === 40) return "";                                       // real matches: no warning
+            if (level === 50) return "Matche(s) in our dataset that may not be accurate:";
+            if (level === 60) return "Matche(s) in our dataset that are not so accurate:";
+            return "No reference images match your pose!! Here are the next closest matches:";                  // nothing within 60
+        }
+
         } catch (error) {
             console.error("Search failed:", error);
             showGalleryMessage("Could not load the reference images.");

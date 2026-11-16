@@ -245,3 +245,36 @@ main.drag-over {
 #cancelUpload:hover {
     background-color: #707070;
 }
+
+/* CURSORS (same as the main page) */
+html {
+    cursor: url("../assets/cursors/arrow-light.png") 10 7, auto;
+}
+
+main,
+button:not(:disabled),
+label,
+input[type="file"] {
+    cursor: url("../assets/cursors/arrow-click-light.png") 16 3, pointer;
+}
+
+button:disabled {
+    cursor: url("../assets/cursors/arrow-light.png") 10 7, not-allowed;
+}
+
+@media (prefers-color-scheme: dark) {
+    html {
+        cursor: url("../assets/cursors/arrow-dark.png") 10 7, auto;
+    }
+
+    main,
+    button:not(:disabled),
+    label,
+    input[type="file"] {
+        cursor: url("../assets/cursors/arrow-click-dark.png") 16 3, pointer;
+    }
+
+    button:disabled {
+        cursor: url("../assets/cursors/arrow-dark.png") 10 7, not-allowed;
+    }
+}

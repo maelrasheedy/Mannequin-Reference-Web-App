@@ -10,7 +10,21 @@ import { solveIKChain } from './inverse_kinematic_rig.js';
 
 // Set up the mannequin scene
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a1a1a);
+
+
+// Match the sketch box: use the page's panel color (maryam)
+function applySceneBackground() {
+    const surface = getComputedStyle(document.documentElement)
+        .getPropertyValue("--color-surface")
+        .trim();
+    scene.background = new THREE.Color(surface || "#ffffff");
+}
+applySceneBackground();
+window
+    .matchMedia("(prefers-color-scheme: dark)")
+    .addEventListener("change", applySceneBackground);
+
+
 
 const camera = new THREE.PerspectiveCamera(
     60,
@@ -19,7 +33,23 @@ const camera = new THREE.PerspectiveCamera(
     1000
 );
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+
+// If the browser can't start WebGL, tell the main page so it can hide this
+// viewport and fall back to the sketch upload.
+let renderer;
+try {
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+} catch (error) {
+    if (window.parent !== window) {
+        window.parent.postMessage(
+            { type: "MANNEQUIN_WEBGL_UNAVAILABLE" },
+            window.location.origin
+        );
+    }
+    throw error; // nothing else in this file can run without WebGL
+}
+
+
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -605,6 +635,10 @@ window.addEventListener("message", function (event) {
     if (message.pose === null) {
         pendingSketchPose = null;
         resetSketchMannequinPose();
+
+        // Tell the main page the mannequin's pose again, so Search always
+        // has a valid pose after a sketch is removed.
+        scheduleMannequinPoseUpdate();
         return;
     }
 
@@ -1166,7 +1200,7 @@ function updateHandIKDrag(event) {
     solveHandIK(target);
 
     // Let the main website know the hand pose changed
-    scheduleMannequinPoseUpdate();
+    //scheduleMannequinPoseUpdate(); //removing this so it only updates on release (maryam)
 }
 
 // Stop hand IK and restore camera controls
@@ -1181,6 +1215,8 @@ function finishHandIKDrag() {
     }
 
     controls.enabled = true;
+    // Send the pose once, now that the drag has ended
+    scheduleMannequinPoseUpdate(); //added so that pose only updates on release (maryam)
     return true;
 }
 
@@ -1238,7 +1274,7 @@ renderer.domElement.addEventListener("pointermove", (event) => {
     previousMouseY = event.clientY;
 
     // Update the reference-search pose after moving a joint
-    scheduleMannequinPoseUpdate();
+    //scheduleMannequinPoseUpdate(); //removing this so pose only updates on release (maryam)
 }, true);
 
 // Stop joint dragging
@@ -1261,6 +1297,8 @@ function stopJointDragging(event) {
     if (renderer.domElement.hasPointerCapture(event.pointerId)) {
         renderer.domElement.releasePointerCapture(event.pointerId);
     }
+    // Send the pose once, now that the drag has ended
+    scheduleMannequinPoseUpdate(); //added so that pose only updates on release (maryam)
 }
 
 renderer.domElement.addEventListener("pointerup", stopJointDragging, true);
@@ -1296,10 +1334,14 @@ window.addEventListener("keydown", (event) => {
 
 // Restore controls if the browser loses focus
 window.addEventListener("blur", () => {
-    finishHandIKDrag();
+    const wasDraggingJoint = draggingJoint !== null;
+
+    finishHandIKDrag(); // sends the pose itself if a hand drag was active
     draggingJoint = null;
     draggingPointerId = null;
     controls.enabled = true;
+
+    if (wasDraggingJoint) scheduleMannequinPoseUpdate();
 });
 
 
@@ -1337,6 +1379,18 @@ window.addEventListener("message", (event) => {
 
     console.log("Mannequin reset to original pose!");
 });
+
+
+// The main page can ask for the current pose at any time, for example if
+// Search is clicked before the first pose has arrived.
+window.addEventListener("message", (event) => {
+    if (event.origin !== window.location.origin) return;
+    if (event.source !== window.parent) return;
+    if (event.data?.type !== "MANNEQUIN_REQUEST_POSE") return;
+
+    sendMannequinPose();
+});
+
 
 function addFaceMarker(model) {
     model.updateMatrixWorld(true);

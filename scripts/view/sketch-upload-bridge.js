@@ -48,20 +48,24 @@ window.addEventListener("message", function (event) {
     // Save the new sketch pose or clear it if removed
     window.sketchUploadPoseJson = message.pose;
 
+
+    // Without WebGL there is no mannequin to fall back to!!
+    // so removing the sketch means there is no pose to search with.
+    if (!window.sketchUploadPoseJson && document.documentElement.classList.contains("no-webgl")) {
+        currentUserPose = null;
+    }
+
+
     // INTEGRATION FIX:
     // Share the sketch pose with Maryam's search controller.
     if (typeof currentUserPose !== "undefined") {
 
-        currentUserPose = window.sketchUploadPoseJson;
-
-        // Enable Search when a sketch pose is available.
-        // Disable Search when the sketch pose is cleared.
-        const searchButton = document.getElementById(
-            "search-button"
-        );
-
-        if (searchButton) {
-            searchButton.disabled = !currentUserPose;
+        // A new sketch pose becomes the search pose. When a sketch is removed
+        // or rejected (null) nothing is set here: the mannequin sends its own
+        // pose right afterwards (see main-glb.js), and that becomes the
+        // search pose. The Search button stays enabled either way.
+        if (window.sketchUploadPoseJson) {
+            currentUserPose = window.sketchUploadPoseJson;
         }
 
     } else {
@@ -71,7 +75,7 @@ window.addEventListener("message", function (event) {
         );
 
     }
-
+    
     // Forward the sketch pose to the Three.js mannequin
     const sketchPoseMannequinFrame = document.getElementById(
         "mannequin-frame"

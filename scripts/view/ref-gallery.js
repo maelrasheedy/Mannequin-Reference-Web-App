@@ -27,6 +27,20 @@ function cloudinaryResized(url, width) {
     );
 }
 
+
+   // Thumbnails: Cloudinary crops to 3:4 around the most important area
+   // (c_auto + g_auto) so the person stays in the picture.
+   function cloudinaryThumbnail(url, width) {
+       if (!url.includes("res.cloudinary.com") || !url.includes("/upload/")) {
+           return url;
+       }
+       return url.replace(
+           "/upload/",
+           `/upload/c_auto,g_auto,ar_3:4,w_${width},q_auto,f_auto/`
+       );
+   }
+
+
 // Cloudinary can ask the browser to SAVE an image instead of showing it
 // Adding the fl_attachment flag makes it send a "download this file" header,
 // which also works across websites (the HTML "download" attribute does not).
@@ -54,57 +68,116 @@ if (downloadButton) {
     downloadButton.addEventListener("click", downloadViewerImage);
 }
 
-function openImageViewer(result) {
-    if (!imageViewer || !enlargedImage) return;
-    viewerResult = result;
-    enlargedImage.src = cloudinaryResized(result.url, 1600);
-    enlargedImage.alt = `Reference image ${result.id}`;
-    imageViewer.showModal();
-}
+   // Width of the enlarged picture. 1200 is plenty sharp for the viewer and
+   // downloads noticeably faster than 1600.
+   const VIEWER_WIDTH = 1200;
+
+   // Start downloading the big version before the user clicks (see the hover
+   // listeners in renderGallery). Remembering what we've asked for avoids repeats.
+   const preloadedViewerImages = new Set();
+   function preloadEnlarged(result) {
+       const src = cloudinaryResized(result.url, VIEWER_WIDTH);
+       if (preloadedViewerImages.has(src)) return;
+       preloadedViewerImages.add(src);
+       new Image().src = src;
+   }
+
+   function openImageViewer(result) {
+       if (!imageViewer || !enlargedImage) return;
+       viewerResult = result;
+       enlargedImage.alt = `Reference image ${result.id}`;
+
+       // Show the small thumbnail right away (it is already loaded), then swap in
+       // the sharp version as soon as it has finished downloading.
+       enlargedImage.src = cloudinaryThumbnail(result.url, 400);
+       const sharpSrc = cloudinaryResized(result.url, VIEWER_WIDTH);
+       const loader = new Image();
+       loader.onload = () => {
+           if (viewerResult === result) enlargedImage.src = sharpSrc;
+       };
+       loader.src = sharpSrc;
+
+       imageViewer.showModal();
+   }
 
 if (closeViewerButton && imageViewer) {
     closeViewerButton.addEventListener("click", () => imageViewer.close());
 }
 
+
+  // A small notice above the gallery, e.g. when nothing matches closely.
+  // Pass "" (or nothing) to remove it.
+  function showGalleryNotice(text) {
+      let notice = document.getElementById("gallery-notice");
+      if (!text) {
+          if (notice) notice.remove();
+          return;
+      }
+      if (!notice) {
+          notice = document.createElement("p");
+          notice.id = "gallery-notice";
+          notice.setAttribute("role", "status");
+          galleryGrid.parentElement.insertBefore(notice, galleryGrid);
+      }
+      notice.textContent = text;
+  }
+
+
 function showGalleryMessage(text) {
+    showGalleryNotice("");
     galleryGrid.replaceChildren();
     const message = document.createElement("p");
     message.textContent = text;
     galleryGrid.appendChild(message);
 }
 
-function renderGallery(results) {
-    if (!results || results.length === 0) {
+// One thumbnail + caption for a result.
+function createGalleryItem(result, number, total) {
+    const figure = document.createElement("figure");
+    figure.className = "gallery-item";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "gallery-thumb";
+    button.setAttribute("aria-label", `Enlarge reference image ${number} of ${total}`);
+    button.title = `Pose difference: ${result.score}°`;
+    button.addEventListener("click", () => openImageViewer(result));
+    button.addEventListener("pointerenter", () => preloadEnlarged(result));
+    button.addEventListener("focus", () => preloadEnlarged(result));
+
+    const img = document.createElement("img");
+    img.loading = "lazy";
+    img.src = cloudinaryThumbnail(result.url, 400);
+    img.alt = `Reference image ${result.id}, match number ${number}`;
+    button.appendChild(img);
+
+    figure.append(button);
+    return figure;
+}
+
+// sections = [ { notice: "warning text, or empty", matches: [result, ...] }, ... ]
+// Each section shows its warning line (if any) and then its photos.
+function renderGallery(sections) {
+    const total = sections.reduce((sum, s) => sum + s.matches.length, 0);
+    if (total === 0) {
         showGalleryMessage("No matching reference images found.");
         return;
     }
 
-    const items = results.map((result, index) => {
-        const figure = document.createElement("figure");
-        figure.className = "gallery-item";
-
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "gallery-thumb";
-        button.setAttribute(
-            "aria-label",
-            `Enlarge reference image ${index + 1} of ${results.length}`
-        );
-        button.title = `Pose difference: ${result.score}°`;
-        button.addEventListener("click", () => openImageViewer(result));
-
-        const img = document.createElement("img");
-        img.loading = "lazy";
-        img.src = cloudinaryResized(result.url, 400);
-        img.alt = `Reference image ${result.id}, match number ${index + 1}`;
-        button.appendChild(img);
-
-        const caption = document.createElement("figcaption");
-        caption.textContent = `#${index + 1}`;
-
-        figure.append(button, caption);
-        return figure;
-    });
-
+    const items = [];
+    let number = 0;
+    for (const section of sections) {
+        if (section.notice) {
+            const notice = document.createElement("p");
+            notice.className = "gallery-section-notice";
+            notice.setAttribute("role", "status");
+            notice.textContent = section.notice;
+            items.push(notice);
+        }
+        for (const result of section.matches) {
+            number += 1;
+            items.push(createGalleryItem(result, number, total));
+        }
+    }
     galleryGrid.replaceChildren(...items);
 }
