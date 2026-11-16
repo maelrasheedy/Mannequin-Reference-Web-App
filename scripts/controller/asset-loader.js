@@ -1,5 +1,5 @@
 
- // Task 1.1.7 - Show a loading screen while app data loads
+// Task 1.1.7 - Show a loading screen while app data loads
 (function () {
 
     const loadingOverlay = document.getElementById("loading-overlay");
@@ -8,18 +8,35 @@
     // Load the data without freezing the webpage
     async function loadAssets() {
 
-        if (!loadingOverlay || !window.ReferenceCache) {
-            console.error("Loading screen or reference cache is missing.");
-            return;
-        }
-
         // Show Loading... while the data is being prepared
-        loadingOverlay.hidden = false;
+        if (loadingOverlay) {
+            loadingOverlay.hidden = false;
+        } else {
+            console.warn("Loading screen element is missing.");
+        }
 
         try {
 
+            // Make sure the reference cache is available
+            if (
+                !window.ReferenceCache ||
+                typeof window.ReferenceCache.loadReferences !== "function"
+            ) {
+                throw new Error(
+                    "Reference cache is missing or not initialized."
+                );
+            }
+
             // Reuse the metadata loader from Task 1.1.5
-            await window.ReferenceCache.loadReferences();
+            const references =
+                await window.ReferenceCache.loadReferences();
+
+            // Make sure the reference images were loaded correctly
+            if (!Array.isArray(references)) {
+                throw new Error(
+                    "Reference metadata is not a valid array."
+                );
+            }
 
             console.log("Reference data is ready.");
 
@@ -36,7 +53,9 @@
         } finally {
 
             // Hide the loading screen when loading finishes
-            loadingOverlay.hidden = true;
+            if (loadingOverlay) {
+                loadingOverlay.hidden = true;
+            }
 
         }
     }

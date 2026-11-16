@@ -1,4 +1,5 @@
 
+
 // Get the elements we need from the upload page
 const sketchUpload = document.getElementById("sketchUpload");
 const imagePreview = document.getElementById("imagePreview");
@@ -89,7 +90,100 @@ function getPoseDetectionErrorMessage(error) {
         return "Could not load pose detection files. Check your connection and try again.";
     }
 
-    return "Error: Pose detection could not start. Please try again.";
+    // Give a clearer message when the worker rejects unclear body parts.
+    if (/both arms.*unclear|both arms.*hidden/i.test(errorMessage)) {
+        return "Human detected, but both arms are unclear. Please upload a clearer full-body image.";
+    }
+
+    if (
+        /low visibility|pose rejected|invalid landmark|missing landmarks|invalid direction|incomplete pose/i.test(
+            errorMessage
+        )
+    ) {
+        return "Human detected, but some body joints are unclear or invalid. Please try a clearer full-body image.";
+    }
+
+    return "Error: Pose detection could not start or complete. Please try again.";
+}
+
+
+// Check that the worker generated the correct 14-joint pose JSON.
+// Keep the same joint names used by pose-schema.js and pose-matcher.js.
+function isValidUserPoseJson(pose) {
+    const requiredNames = new Set([
+        "torso",
+        "neck",
+
+        "left_shoulder",
+        "left_elbow",
+        "left_wrist",
+
+        "right_shoulder",
+        "right_elbow",
+        "right_wrist",
+
+        "left_hip",
+        "left_knee",
+        "left_ankle",
+
+        "right_hip",
+        "right_knee",
+        "right_ankle"
+    ]);
+
+    if (
+        !pose ||
+        !Array.isArray(pose.pose_vector) ||
+        pose.pose_vector.length !== requiredNames.size
+    ) {
+        return false;
+    }
+
+    const foundNames = new Set();
+
+    for (const joint of pose.pose_vector) {
+        if (
+            !joint ||
+            typeof joint.name !== "string" ||
+            !requiredNames.has(joint.name) ||
+            foundNames.has(joint.name) ||
+            !Number.isFinite(joint["x-plane-angle"]) ||
+            !Number.isFinite(joint["y-plane-angle"]) ||
+            !Number.isFinite(joint["z-plane-angle"])
+        ) {
+            return false;
+        }
+
+        foundNames.add(joint.name);
+    }
+
+    if (foundNames.size !== requiredNames.size) {
+        return false;
+    }
+
+    // Estimated body parts must refer to joints in the pose JSON.
+    // This keeps hidden-arm information safe for the pose matcher.
+    if (pose.estimated_segments !== undefined) {
+        if (!Array.isArray(pose.estimated_segments)) {
+            return false;
+        }
+
+        const estimatedNames = new Set();
+
+        for (const name of pose.estimated_segments) {
+            if (
+                typeof name !== "string" ||
+                !requiredNames.has(name) ||
+                estimatedNames.has(name)
+            ) {
+                return false;
+            }
+
+            estimatedNames.add(name);
+        }
+    }
+
+    return true;
 }
 
 
@@ -106,6 +200,8 @@ function sendPoseToMainPage() {
             {
                 source: "image-upload",
                 type: "pose-update",
+
+                // Send the complete JSON, including estimated_segments.
                 pose: activePoseJson
             },
             window.location.origin
@@ -279,6 +375,11 @@ sketchUpload.addEventListener("change", function () {
         return;
     }
 
+    if (file.size === 0) {
+        rejectImage("This image file is empty. Please choose another image.");
+        return;
+    }
+
     // Clear the active pose while the new image is loading
     detectionRunId++;
     clearPreview();
@@ -337,7 +438,7 @@ sketchUpload.addEventListener("change", function () {
         removeImage.hidden = false;
 
         uploadMessage.textContent =
-        "Image selected successfully!";
+            "Image selected successfully!";
 
         uploadConfirmDialog.showModal();
     };
@@ -455,8 +556,8 @@ confirmUpload.addEventListener("click", async function () {
         return;
     }
 
-
     uploadConfirmDialog.close();
+
     // No WebGL means MediaPipe can't run, so stop before locking the controls
     if (!hasWebGL()) {
         clearInvalidSketchPose();
@@ -482,7 +583,6 @@ confirmUpload.addEventListener("click", async function () {
     const imageBeingChecked = previewURL;
     const currentRunId = ++detectionRunId;
 
-
     function isCurrentImage() {
         return (
             currentRunId === detectionRunId &&
@@ -502,7 +602,7 @@ confirmUpload.addEventListener("click", async function () {
         }
 
         // Get the detection results sent back by the worker
-        const result = workerResponse.result;
+        const result = workerResponse?.result;
 
         if (!isCurrentImage()) {
             return;
@@ -555,13 +655,12 @@ confirmUpload.addEventListener("click", async function () {
                 return;
             }
 
-            // Verify that the pose contains all 14 joints
-            if (
-                !userPoseJson ||
-                !Array.isArray(userPoseJson.pose_vector) ||
-                userPoseJson.pose_vector.length !== 14
-            ) {
-                throw new Error("Incomplete pose JSON.");
+            // Verify all 14 joints, their angles, and estimated segments
+            // before allowing the pose into the search system.
+            if (!isValidUserPoseJson(userPoseJson)) {
+                throw new Error(
+                    "Incomplete or invalid 14-joint pose JSON."
+                );
             }
 
             // Save and send only a successfully generated pose
@@ -673,6 +772,6 @@ sketchUpload.addEventListener("cancel", function () {
 
 //added by maryam to show a clear error message when no WebGL is available
 function hasWebGL() {
-  const canvas = document.createElement("canvas");
-  return !!(canvas.getContext("webgl2") || canvas.getContext("webgl"));
+    const canvas = document.createElement("canvas");
+    return !!(canvas.getContext("webgl2") || canvas.getContext("webgl"));
 }

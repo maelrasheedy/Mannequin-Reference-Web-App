@@ -1,8 +1,12 @@
 
+
 import os
 import json
 import uuid
 import math
+import argparse
+import shutil
+from datetime import datetime
 from urllib.parse import quote
 
 import numpy as np
@@ -177,11 +181,15 @@ MIN_PARTS = 10
 
 def calculate_plane_angles(vector):
 
+    # Do not write invalid numeric values into the reference metadata.
+    if not np.all(np.isfinite(vector)):
+        return None
+
     x, y, z = vector
 
     norm = np.linalg.norm(vector)
 
-    if norm < 1e-8:
+    if not math.isfinite(float(norm)) or norm < 1e-8:
         return None
 
     angle_x = math.degrees(
@@ -217,7 +225,31 @@ def threshold_for(index):
 
 
 def is_visible(landmarks, index):
-    return landmarks[index].visibility >= threshold_for(index)
+
+    if index >= len(landmarks):
+        return False
+
+    landmark = landmarks[index]
+
+    if landmark is None:
+        return False
+
+    # Keep the existing visibility thresholds, but reject landmarks
+    # whose 3D coordinates are not valid numbers.
+    try:
+        values = (
+            float(landmark.visibility),
+            float(landmark.x),
+            float(landmark.y),
+            float(landmark.z)
+        )
+    except (TypeError, ValueError, AttributeError):
+        return False
+
+    if not all(math.isfinite(value) for value in values):
+        return False
+
+    return values[0] >= threshold_for(index)
 
 
 def reliable_parts(landmarks):
@@ -403,7 +435,92 @@ def generate_image_url(image_id):
     return CLOUDINARY_BASE_URL + image_id + CLOUDINARY_EXTENSION
 
 
-def extract_poses_from_directory():
+# Save new metadata only after the user explicitly requests writing it.
+# Keep a backup of the existing JSON and replace it atomically.
+def save_reference_metadata(dataset):
+
+    os.makedirs(
+        OUTPUT_DIR,
+        exist_ok=True
+    )
+
+    # Protect the existing reference collection.
+    if os.path.isfile(OUTPUT_JSON):
+
+        with open(
+            OUTPUT_JSON,
+            "r",
+            encoding="utf-8"
+        ) as f:
+            previous_dataset = json.load(f)
+
+        if not isinstance(previous_dataset, list):
+            raise ValueError(
+                "Existing reference metadata is not an array. "
+                "The file was not overwritten."
+            )
+
+        if len(dataset) < len(previous_dataset):
+            raise ValueError(
+                "The new extraction contains fewer reference images "
+                f"({len(dataset)}) than the existing metadata "
+                f"({len(previous_dataset)}). "
+                "The existing JSON was not overwritten. "
+                "Check that all source images are available."
+            )
+
+        backup_stamp = datetime.now().strftime(
+            "%Y%m%d-%H%M%S-%f"
+        )
+
+        backup_path = (
+            OUTPUT_JSON +
+            ".backup-" +
+            backup_stamp
+        )
+
+        shutil.copy2(
+            OUTPUT_JSON,
+            backup_path
+        )
+
+        print(
+            f"\nExisting metadata backed up to: {backup_path}"
+        )
+
+    temporary_path = OUTPUT_JSON + ".tmp"
+
+    try:
+        with open(
+            temporary_path,
+            "w",
+            encoding="utf-8"
+        ) as f:
+            json.dump(
+                dataset,
+                f,
+                indent=2,
+                ensure_ascii=False
+            )
+
+        os.replace(
+            temporary_path,
+            OUTPUT_JSON
+        )
+
+    except Exception:
+
+        if os.path.exists(temporary_path):
+            os.remove(temporary_path)
+
+        raise
+
+    print(
+        f"\nUpdated reference metadata saved to: {OUTPUT_JSON}"
+    )
+
+
+def extract_poses_from_directory(write_output=False):
     # Validate configuration
     if not os.path.isfile(MODEL_PATH):
         raise FileNotFoundError(
@@ -416,25 +533,15 @@ def extract_poses_from_directory():
             f"{IMAGE_SET_DIR}"
         )
 
-    os.makedirs(
-        OUTPUT_DIR,
-        exist_ok=True
-    )
-
     image_records = discover_reference_images()
     dataset = []
 
     if not image_records:
-        print("No reference images found.")
-
-        with open(
-            OUTPUT_JSON,
-            "w",
-            encoding="utf-8"
-        ) as f:
-            json.dump([], f, indent=2)
-
-        return
+        print(
+            "No reference images found. "
+            "Existing metadata was not changed."
+        )
+        return dataset
 
     # Initialize MediaPipe
     base_options = python.BaseOptions(
@@ -542,10 +649,29 @@ def extract_poses_from_directory():
                 allowed_parts=kept_parts
             )
 
-            if not pose_vector_list:
+            # Count only segments with usable angles as reliable.
+            # A segment can be visible but still have zero length.
+            generated_names = {
+                part["name"]
+                for part in pose_vector_list
+            }
+
+            omitted_parts = [
+                name
+                for name in JOINT_SEGMENTS
+                if name not in generated_names
+            ]
+
+            if (
+                len(pose_vector_list) < MIN_PARTS
+                or any(
+                    part not in generated_names
+                    for part in CORE_PARTS
+                )
+            ):
                 print(
-                    f"{progress} INVALID POSE VECTORS: "
-                    f"{filename}"
+                    f"{progress} INVALID OR INCOMPLETE POSE "
+                    f"({len(pose_vector_list)}/14): {filename}"
                 )
                 skipped += 1
                 continue
@@ -566,7 +692,11 @@ def extract_poses_from_directory():
             image_record = {
                 "id": record["image_id"],
                 "url": generate_image_url(record["image_id"]),
-                "pose_vector": pose_vector_list
+                "pose_vector": pose_vector_list,
+
+                # Unreliable reference parts are omitted, not estimated.
+                # This is for tracking missing parts during dataset review.
+                "omitted_segments": omitted_parts
             }
 
             dataset.append(image_record)
@@ -581,18 +711,6 @@ def extract_poses_from_directory():
             )
 
             print(f"{progress} SUCCESS: {filename}{note}")
-
-    with open(
-        OUTPUT_JSON,
-        "w",
-        encoding="utf-8"
-    ) as f:
-        json.dump(
-            dataset,
-            f,
-            indent=2,
-            ensure_ascii=False
-        )
 
     print("\n" + "=" * 55)
     print("REFERENCE IMAGE EXTRACTION COMPLETED")
@@ -613,8 +731,50 @@ def extract_poses_from_directory():
 
     print(f"JSON records generated: {len(dataset)}")
     print(f"\nOutput file: {OUTPUT_JSON}")
+
+    if not dataset:
+        print(
+            "\nNo usable poses were generated. "
+            "Existing reference metadata was not changed."
+        )
+
+    elif write_output:
+        save_reference_metadata(dataset)
+
+    else:
+        # Preview only: do not replace the existing 931 records.
+        print(
+            "\nPREVIEW ONLY: No reference metadata was changed."
+        )
+        print(
+            "Review the extraction results before writing new JSON."
+        )
+
     print("=" * 55)
+
+    return dataset
 
 
 if __name__ == "__main__":
-    extract_poses_from_directory()
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Extract reference pose metadata. "
+            "Runs in preview mode unless --write is specified."
+        )
+    )
+
+    parser.add_argument(
+        "--write",
+        action="store_true",
+        help=(
+            "Back up and replace images-metadata.json "
+            "after checking the extraction results."
+        )
+    )
+
+    args = parser.parse_args()
+
+    extract_poses_from_directory(
+        write_output=args.write
+    )

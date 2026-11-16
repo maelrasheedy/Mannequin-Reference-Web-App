@@ -1,3 +1,4 @@
+
 import * as THREE from './three.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from './OrbitControls.js';
@@ -17,13 +18,15 @@ function applySceneBackground() {
     const surface = getComputedStyle(document.documentElement)
         .getPropertyValue("--color-surface")
         .trim();
+
     scene.background = new THREE.Color(surface || "#ffffff");
 }
+
 applySceneBackground();
+
 window
     .matchMedia("(prefers-color-scheme: dark)")
     .addEventListener("change", applySceneBackground);
-
 
 
 const camera = new THREE.PerspectiveCamera(
@@ -37,6 +40,7 @@ const camera = new THREE.PerspectiveCamera(
 // If the browser can't start WebGL, tell the main page so it can hide this
 // viewport and fall back to the sketch upload.
 let renderer;
+
 try {
     renderer = new THREE.WebGLRenderer({ antialias: true });
 } catch (error) {
@@ -46,6 +50,7 @@ try {
             window.location.origin
         );
     }
+
     throw error; // nothing else in this file can run without WebGL
 }
 
@@ -94,69 +99,166 @@ let draggingPointerId = null;
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
+
 // Starting movement limits in degrees from the original Blender pose.
 // We still need to test and adjust some directions for our model.
+
+// let the mannequin do regular poses and flexible yoga or ballet poses
+// but keep each joint from bending or twisting too far
 const JOINT_LIMITS = {
     UpperArm: {
-        x: [-120, 160],
-        y: [-60, 60],
-        z: [-130, 130]
-    },
-    Forearm: {
-        x: [-145, 0],
-        y: [-5, 5],
-        z: [-5, 5]
-    },
-    Wrist: {
-        x: [-65, 65],
-        y: [-30, 30],
-        z: [-25, 25]
-    },
-    Thigh: {
-        x: [-45, 120],
+        x: [-170, 65],
         y: [-35, 35],
-        z: [-45, 45]
+        z: [-140, 140]
     },
-    Shin: {
-        x: [0, 135],
-        y: [-5, 5],
-        z: [-5, 5]
+
+    UpperArmScreenLeft: {
+        x: [-170, 65],
+        y: [-35, 35],
+        z: [-160, 25]
     },
-    Ankle: {
-        x: [-45, 25],
-        y: [-20, 20],
-        z: [-25, 25]
+
+    UpperArmScreenRight: {
+        x: [-170, 65],
+        y: [-35, 35],
+        z: [-25, 160]
     },
-    Neck: {
-        x: [-40, 40],
-        y: [-65, 65],
+
+    Forearm: {
+        x: [-150, 0],
+        y: [-3, 3],
+        z: [-3, 3]
+    },
+
+    Wrist: {
+        x: [-85, 85],
+        y: [-25, 25],
         z: [-35, 35]
     },
+
+    // let both legs lift farther forward for stretches and poses
+    Thigh: {
+    x: [-110, 135],
+    y: [-50, 50],
+    z: [-90, 90]
+    },
+
+    ThighScreenLeft: {
+        x: [-110, 135],
+        y: [-50, 50],
+        z: [-90, 30]
+    },
+
+    ThighScreenRight: {
+        x: [-110, 135],
+        y: [-50, 50],
+        z: [-30, 90]
+    },
+
+    Shin: {
+        x: [0, 150],
+        y: [-3, 3],
+        z: [-3, 3]
+    },
+
+    Ankle: {
+        x: [-70, 35],
+        y: [-15, 15],
+        z: [-25, 25]
+    },
+
+    Neck: {
+        x: [-35, 35],
+        y: [-50, 50],
+        z: [-25, 25]
+    },
+
     Head: {
-        x: [-20, 20],
+        x: [-25, 25],
+        y: [-40, 40],
+        z: [-20, 20]
+    },
+
+    Waist_Joint: {
+        x: [-35, 40],
+        y: [-40, 40],
+        z: [-35, 35]
+    },
+
+    FingerProximal: {
+        x: [-90, 10],
+        y: [-10, 10],
+        z: [-10, 10]
+    },
+
+    FingerMiddle: {
+        x: [-100, 5],
+        y: [-3, 3],
+        z: [-3, 3]
+    },
+
+    FingerDistal: {
+        x: [-80, 5],
+        y: [-3, 3],
+        z: [-3, 3]
+    },
+
+    ThumbProximal: {
+        x: [-65, 15],
         y: [-25, 25],
         z: [-20, 20]
     },
-    Waist_Joint: {
-        x: [-30, 30],
-        y: [-45, 45],
-        z: [-25, 25]
+
+    ThumbMiddle: {
+        x: [-70, 10],
+        y: [-10, 10],
+        z: [-10, 10]
     },
-    Finger: {
-        x: [-90, 90],
-        y: [-8, 8],
-        z: [-8, 8]
+
+    ThumbDistal: {
+        x: [-60, 10],
+        y: [-5, 5],
+        z: [-5, 5]
     }
 };
 
+let mannequinHeight = 1;
+
 // Find the movement limits for a body part
 function getJointLimits(name) {
-    if (/^(Index|Middle|Ring|Pinky|Thumb)_(Proximal|Middle|Distal)_/.test(name)) {
-        return JOINT_LIMITS.Finger;
+    const fingerMatch = name.match(
+        /^(Index|Middle|Ring|Pinky|Thumb)_(Proximal|Middle|Distal)_/
+    );
+
+    if (fingerMatch) {
+        const [, finger, segment] = fingerMatch;
+
+        if (finger === "Thumb") {
+            return JOINT_LIMITS[`Thumb${segment}`];
+        }
+
+        return JOINT_LIMITS[`Finger${segment}`];
     }
 
     if (name === "Waist_Joint") {
         return JOINT_LIMITS.Waist_Joint;
+    }
+
+    // give the left and right shoulders and hips their own limits
+    if (name === "UpperArm_ScreenLeft") {
+        return JOINT_LIMITS.UpperArmScreenLeft;
+    }
+
+    if (name === "UpperArm_ScreenRight") {
+        return JOINT_LIMITS.UpperArmScreenRight;
+    }
+
+    if (name === "Thigh_ScreenLeft") {
+        return JOINT_LIMITS.ThighScreenLeft;
+    }
+
+    if (name === "Thigh_ScreenRight") {
+        return JOINT_LIMITS.ThighScreenRight;
     }
 
     const jointType = name.split("_")[0];
@@ -169,32 +271,270 @@ function saveRestRotations(model) {
         if (getJointLimits(node.name)) {
             node.userData.restRotation = node.rotation.clone();
             node.userData.rotationOrder = node.rotation.order;
+            node.userData.lastSafeRotation = node.rotation.clone();
         }
     });
 }
 
+
+// ============================================================
+// BODY COLLISION LIMITS
+// ============================================================
+
+// check if the arms and legs are going through the torso or head
+// we dont block every movement behind the body since some stretches need it
+function getBodyCollisionScore() {
+    if (!loadedModel) return 0;
+
+    loadedModel.updateMatrixWorld(true);
+
+    const bodyBoxes = [];
+    const headBoxes = [];
+    const padding = mannequinHeight * 0.012;
+
+    loadedModel.traverse((part) => {
+        if (!part.isMesh || !part.geometry) return;
+
+        const isBody = /^(Torso|Chest|UpperTorso|Abdomen|Waist_Joint|Pelvis|Hips)(?:[_\-.]|$)/i.test(
+            part.name
+        );
+
+        const isHead = /^Head(?:[_\-.]|$)/i.test(part.name);
+
+        if (!isBody && !isHead) return;
+
+        part.geometry.computeBoundingBox();
+
+        if (!part.geometry.boundingBox) return;
+
+        const bounds = part.geometry.boundingBox.clone()
+            .applyMatrix4(part.matrixWorld);
+
+        if (bounds.isEmpty()) return;
+
+        const size = bounds.getSize(new THREE.Vector3());
+
+        const shrink = Math.min(
+            padding,
+            size.x * 0.15,
+            size.y * 0.15,
+            size.z * 0.15
+        );
+
+        bounds.expandByScalar(-shrink);
+
+        if (bounds.isEmpty()) return;
+
+        if (isBody) {
+            bodyBoxes.push(bounds);
+        } else {
+            headBoxes.push(bounds);
+        }
+    });
+
+    let score = 0;
+
+    function pointInsideBody(point, bounds) {
+        if (!bounds.containsPoint(point)) return 0;
+
+        const depth = Math.min(
+            point.x - bounds.min.x,
+            bounds.max.x - point.x,
+            point.y - bounds.min.y,
+            bounds.max.y - point.y,
+            point.z - bounds.min.z,
+            bounds.max.z - point.z
+        );
+
+        return Math.max(0, depth);
+    }
+
+    function checkSegment(startName, endName, samples, boxes) {
+        const start = loadedModel.getObjectByName(startName);
+        const end = loadedModel.getObjectByName(endName);
+
+        if (!start || !end) return;
+
+        const a = start.getWorldPosition(new THREE.Vector3());
+        const b = end.getWorldPosition(new THREE.Vector3());
+
+        for (const t of samples) {
+            const point = a.clone().lerp(b, t);
+
+            for (const bounds of boxes) {
+                const penetration = pointInsideBody(point, bounds);
+                score += penetration * penetration;
+            }
+        }
+    }
+
+    for (const side of ["Left", "Right"]) {
+        const armBoxes = [...bodyBoxes, ...headBoxes];
+
+        // keep the arms from going inside the torso or head
+        checkSegment(
+            `UpperArm_Screen${side}`,
+            `Forearm_Screen${side}`,
+            [0.55, 0.7, 0.85, 0.95],
+            armBoxes
+        );
+
+        checkSegment(
+            `Forearm_Screen${side}`,
+            `Wrist_Screen${side}`,
+            [0.2, 0.4, 0.6, 0.8],
+            armBoxes
+        );
+
+        checkSegment(
+            `Wrist_Screen${side}`,
+            `Palm_Screen${side}`,
+            [0.4, 0.8],
+            armBoxes
+        );
+
+        // keep the legs from going inside the torso
+        checkSegment(
+            `Thigh_Screen${side}`,
+            `Shin_Screen${side}`,
+            [0.55, 0.75, 0.9],
+            bodyBoxes
+        );
+
+        checkSegment(
+            `Shin_Screen${side}`,
+            `Ankle_Screen${side}`,
+            [0.3, 0.6, 0.9],
+            bodyBoxes
+        );
+    }
+
+    // stop the head from sinking into the torso
+    const head = loadedModel.getObjectByName("Head");
+
+    if (head?.isMesh && head.geometry) {
+        head.geometry.computeBoundingBox();
+
+        if (head.geometry.boundingBox) {
+            const headCenter = head.geometry.boundingBox
+                .getCenter(new THREE.Vector3())
+                .applyMatrix4(head.matrixWorld);
+
+            for (const bounds of bodyBoxes) {
+                const penetration = pointInsideBody(
+                    headCenter,
+                    bounds
+                );
+
+                score += penetration * penetration;
+            }
+        }
+    }
+
+    return score;
+}
+
+
 // Prevent a joint from going outside its movement limits
-function constrainJointRotation(joint) {
+function constrainJointRotation(joint, previousRotation = null) {
     const limits = getJointLimits(joint.name);
     const rest = joint.userData.restRotation;
 
     if (!limits || !rest) return;
 
-    for (const axis of ["x", "y", "z"]) {
-        if (!limits[axis]) continue;
+    // keep the rotations close to the original Blender pose
+    function limitAngles() {
+        for (const axis of ["x", "y", "z"]) {
+            if (!limits[axis]) continue;
 
-        const [minDegrees, maxDegrees] = limits[axis];
+            const [minDegrees, maxDegrees] = limits[axis];
 
-        const minAngle = rest[axis] + THREE.MathUtils.degToRad(minDegrees);
-        const maxAngle = rest[axis] + THREE.MathUtils.degToRad(maxDegrees);
+            const minAngle = THREE.MathUtils.degToRad(minDegrees);
+            const maxAngle = THREE.MathUtils.degToRad(maxDegrees);
 
-        joint.rotation[axis] = THREE.MathUtils.clamp(
-            joint.rotation[axis],
-            minAngle,
-            maxAngle
-        );
+            const difference = joint.rotation[axis] - rest[axis];
+
+            const normalizedDifference = Math.atan2(
+                Math.sin(difference),
+                Math.cos(difference)
+            );
+
+            const limitedDifference = THREE.MathUtils.clamp(
+                normalizedDifference,
+                minAngle,
+                maxAngle
+            );
+
+            joint.rotation[axis] = rest[axis] + limitedDifference;
+        }
+    }
+
+    limitAngles();
+
+    // stop the shoulder and hip from combining rotations into a full spin
+    let maximumRotation = null;
+
+    if (joint.name.startsWith("UpperArm_")) {
+        maximumRotation = 175;
+    } else if (joint.name.startsWith("Thigh_")) {
+        maximumRotation = 160;
+    }
+
+    if (maximumRotation !== null) {
+        const restQuaternion = new THREE.Quaternion()
+            .setFromEuler(rest);
+
+        const currentQuaternion = joint.quaternion.clone();
+
+        const angle = restQuaternion.angleTo(currentQuaternion);
+        const maxAngle = THREE.MathUtils.degToRad(maximumRotation);
+
+        if (angle > maxAngle) {
+            const limitedQuaternion = restQuaternion.clone().slerp(
+                currentQuaternion,
+                maxAngle / angle
+            );
+
+            joint.quaternion.copy(limitedQuaternion);
+            limitAngles();
+        }
+    }
+
+    if (!loadedModel) return;
+
+    const oldRotation =
+        previousRotation ||
+        joint.userData.lastSafeRotation;
+
+    if (!oldRotation) {
+        joint.userData.lastSafeRotation = joint.rotation.clone();
+        return;
+    }
+
+    const newRotation = joint.rotation.clone();
+
+    // compare the pose before and after the movement
+    joint.rotation.copy(oldRotation);
+    loadedModel.updateMatrixWorld(true);
+
+    const previousCollision = getBodyCollisionScore();
+
+    joint.rotation.copy(newRotation);
+    loadedModel.updateMatrixWorld(true);
+
+    const newCollision = getBodyCollisionScore();
+
+    const tolerance = Math.pow(mannequinHeight * 0.0005, 2);
+
+    // only reject movement if the body parts go further into each other
+    if (newCollision > previousCollision + tolerance) {
+        joint.rotation.copy(oldRotation);
+        loadedModel.updateMatrixWorld(true);
+    } else {
+        joint.userData.lastSafeRotation = joint.rotation.clone();
     }
 }
+
 
 // ============================================================
 // TASK 4.5.9 - SKETCH POSE TO MANNEQUIN
@@ -225,7 +565,12 @@ const SKETCH_JOINT_MAPPING = [
     {
         poseName: "left_wrist",
         jointName: "Wrist_ScreenRight",
-        endNames: ["Palm_ScreenRight"]
+        // use the finger tip first to match the hand direction
+        endNames: [
+            "Middle_Distal_ScreenRight",
+            "Index_Distal_ScreenRight",
+            "Palm_ScreenRight"
+        ]
     },
     {
         poseName: "right_shoulder",
@@ -240,7 +585,12 @@ const SKETCH_JOINT_MAPPING = [
     {
         poseName: "right_wrist",
         jointName: "Wrist_ScreenLeft",
-        endNames: ["Palm_ScreenLeft"]
+        // use the finger tip first to match the hand direction
+        endNames: [
+            "Middle_Distal_ScreenLeft",
+            "Index_Distal_ScreenLeft",
+            "Palm_ScreenLeft"
+        ]
     },
     {
         poseName: "left_hip",
@@ -350,6 +700,7 @@ function restoreSketchRestPose() {
 
         if (restRotation) {
             joint.rotation.copy(restRotation);
+            joint.userData.lastSafeRotation = joint.rotation.clone();
         }
     });
 
@@ -410,7 +761,6 @@ function findSketchSegmentEnd(joint, endNames) {
             new THREE.Vector3()
         );
 
-        // Use the joint position when the pivots are apart.
         if (endPosition.distanceToSquared(jointPosition) > 1e-8) {
             return end;
         }
@@ -500,13 +850,314 @@ function rotatePartTowardSketch(joint, segmentEnd, targetDirection) {
 
     joint.quaternion.premultiply(localCorrection);
 
+    // save the rotation the sketch is asking for
+    const requestedRotation = joint.quaternion.clone();
+
     // Keep the same joint movement limits.
     constrainJointRotation(joint);
 
+    // check how much the movement limits changed the rotation
+    const restrictedDegrees = THREE.MathUtils.radToDeg(
+        requestedRotation.angleTo(joint.quaternion)
+    );
+
+    if (restrictedDegrees > 5) {
+        console.warn(
+            "Sketch rotation restricted:",
+            joint.name,
+            restrictedDegrees.toFixed(1) + " degrees"
+        );
+    }
+
     loadedModel.updateMatrixWorld(true);
+
+    // check how close this body part got to the uploaded pose
+    const finalJointPosition = joint.getWorldPosition(
+        new THREE.Vector3()
+    );
+
+    const finalEndPosition = segmentEnd.getWorldPosition(
+        new THREE.Vector3()
+    );
+
+    const finalDirection = finalEndPosition.sub(
+        finalJointPosition
+    );
+
+    if (finalDirection.lengthSq() > 1e-8) {
+        finalDirection.normalize();
+
+        const difference = THREE.MathUtils.radToDeg(
+            finalDirection.angleTo(targetDirection)
+        );
+
+        // show which joints still do not match the sketch
+        if (difference > 10) {
+            console.warn(
+                "Sketch joint did not match target:",
+                joint.name,
+                difference.toFixed(1) + " degrees"
+            );
+        }
+    }
 
     return true;
 }
+
+
+// Check how far a mannequin part is from the sketch
+function getSketchSegmentError(segment) {
+    loadedModel.updateMatrixWorld(true);
+
+    const start = segment.joint.getWorldPosition(
+        new THREE.Vector3()
+    );
+
+    const end = segment.segmentEnd.getWorldPosition(
+        new THREE.Vector3()
+    );
+
+    const direction = end.sub(start);
+
+    if (direction.lengthSq() < 1e-8) {
+        return Math.PI;
+    }
+
+    return direction.normalize().angleTo(
+        segment.targetDirection
+    );
+}
+
+// Improve the shoulder and elbow positions together
+function refineSketchArms(segments) {
+
+    for (const side of ["left", "right"]) {
+
+        const shoulder = segments.find(
+            (segment) => segment.poseName === `${side}_shoulder`
+        );
+
+        const elbow = segments.find(
+            (segment) => segment.poseName === `${side}_elbow`
+        );
+
+        if (!shoulder || !elbow) {
+            continue;
+        }
+
+        // Keep the shoulder close while improving the elbow
+        function getArmScore() {
+            const shoulderError = getSketchSegmentError(
+                shoulder
+            );
+
+            const elbowError = getSketchSegmentError(
+                elbow
+            );
+
+            // Don't let the shoulder move too far from its original match
+            const maxShoulderError =
+                beforeShoulder +
+                THREE.MathUtils.degToRad(2);
+
+            if (shoulderError > maxShoulderError) {
+                return Infinity;
+            }
+
+            return (
+                2 * shoulderError * shoulderError +
+                elbowError * elbowError
+            );
+        }
+
+        const beforeShoulder = getSketchSegmentError(
+            shoulder
+        );
+
+        const beforeElbow = getSketchSegmentError(
+            elbow
+        );
+
+        let bestScore = getArmScore();
+
+        // Try small rotations without changing the joint limits
+        for (const degrees of [10, 5, 2]) {
+
+            const movableJoints = [
+                {
+                    joint: shoulder.joint,
+                    axes: ["x", "y", "z"]
+                },
+                {
+                    joint: elbow.joint,
+                    axes: ["x"]
+                }
+            ];
+
+            for (const part of movableJoints) {
+
+                const joint = part.joint;
+
+                for (const axis of part.axes) {
+
+                    const previousRotation =
+                        joint.rotation.clone();
+
+                    const previousSafeRotation =
+                        joint.userData.lastSafeRotation?.clone();
+
+                    let bestRotation = null;
+                    let candidateScore = bestScore;
+
+                    // Test both directions before keeping a change
+                    for (const sign of [-1, 1]) {
+
+                        joint.rotation.copy(previousRotation);
+
+                        joint.rotation[axis] +=
+                            THREE.MathUtils.degToRad(
+                                degrees * sign
+                            );
+
+                        // Keep Rosie's limits and body collision checks
+                        constrainJointRotation(
+                            joint,
+                            previousRotation
+                        );
+
+                        const score = getArmScore();
+
+                        if (score < candidateScore - 1e-7) {
+                            candidateScore = score;
+                            bestRotation = joint.rotation.clone();
+                        }
+
+                        // Put the joint back after testing
+                        joint.rotation.copy(previousRotation);
+
+                        if (previousSafeRotation) {
+                            joint.userData.lastSafeRotation =
+                                previousSafeRotation.clone();
+                        }
+
+                        loadedModel.updateMatrixWorld(true);
+                    }
+
+                    // Only keep a rotation if it improves the pose
+                    if (bestRotation) {
+                        joint.rotation.copy(bestRotation);
+
+                        joint.userData.lastSafeRotation =
+                            bestRotation.clone();
+
+                        loadedModel.updateMatrixWorld(true);
+
+                        bestScore = candidateScore;
+                    }
+                }
+            }
+        }
+
+        const afterShoulder = getSketchSegmentError(
+            shoulder
+        );
+
+        const afterElbow = getSketchSegmentError(
+            elbow
+        );
+
+        // Show whether the arm got closer to the uploaded pose
+        console.log(
+            `Sketch arm refinement (${side}):`,
+            "Shoulder:",
+            THREE.MathUtils.radToDeg(beforeShoulder).toFixed(1),
+            "to",
+            THREE.MathUtils.radToDeg(afterShoulder).toFixed(1),
+            "degrees, Elbow:",
+            THREE.MathUtils.radToDeg(beforeElbow).toFixed(1),
+            "to",
+            THREE.MathUtils.radToDeg(afterElbow).toFixed(1),
+            "degrees"
+        );
+    }
+}
+
+
+// Help the mannequin wrists match the uploaded pose
+function refineSketchWrists(segments) {
+    const wrists = segments.filter((segment) =>
+        segment.poseName === "left_wrist" ||
+        segment.poseName === "right_wrist"
+    );
+
+    for (const segment of wrists) {
+        const joint = segment.joint;
+
+        const beforeError = getSketchSegmentError(segment);
+        let bestError = beforeError;
+
+        // Try small wrist movements within the joint limits
+        for (const degrees of [10, 5, 2]) {
+            for (const axis of ["x", "y", "z"]) {
+                const originalRotation = joint.rotation.clone();
+                const originalSafe =
+                    joint.userData.lastSafeRotation?.clone();
+
+                let bestRotation = null;
+
+                // Check both rotation directions
+                for (const sign of [-1, 1]) {
+                    joint.rotation.copy(originalRotation);
+
+                    joint.rotation[axis] +=
+                        THREE.MathUtils.degToRad(degrees * sign);
+
+                    constrainJointRotation(
+                        joint,
+                        originalRotation
+                    );
+
+                    const error = getSketchSegmentError(segment);
+
+                    if (error < bestError - 1e-7) {
+                        bestError = error;
+                        bestRotation = joint.rotation.clone();
+                    }
+
+                    // Restore the wrist after checking
+                    joint.rotation.copy(originalRotation);
+
+                    if (originalSafe) {
+                        joint.userData.lastSafeRotation =
+                            originalSafe.clone();
+                    }
+
+                    loadedModel.updateMatrixWorld(true);
+                }
+
+                // Keep only wrist movements that improve the pose
+                if (bestRotation) {
+                    joint.rotation.copy(bestRotation);
+
+                    joint.userData.lastSafeRotation =
+                        bestRotation.clone();
+
+                    loadedModel.updateMatrixWorld(true);
+                }
+            }
+        }
+
+        console.log(
+            "Sketch wrist refinement:",
+            segment.poseName,
+            THREE.MathUtils.radToDeg(beforeError).toFixed(1),
+            "to",
+            THREE.MathUtils.radToDeg(bestError).toFixed(1),
+            "degrees"
+        );
+    }
+}
+
 
 // Apply the uploaded pose to the mannequin.
 function applySketchPose(pose) {
@@ -597,6 +1248,12 @@ function applySketchPose(pose) {
             updatedCount++;
         }
     }
+
+    // Fine tune both arms after applying the sketch pose
+    refineSketchArms(availableSegments);
+
+    // Fine tune the hands after the arms are positioned
+    refineSketchWrists(availableSegments);
 
     hasAppliedSketchPose = updatedCount > 0;
 
@@ -1005,6 +1662,164 @@ function getClickedPart(event) {
     return hit ? hit.object : null;
 }
 
+
+// Let Shift or Space move the whole mannequin view
+let spacePanHeld = false;
+let backgroundPan = null;
+
+// Check when Space is being held
+window.addEventListener("keydown", (event) => {
+    if (event.code !== "Space") return;
+
+    // Do not affect typing in input boxes
+    if (
+        event.target instanceof HTMLElement &&
+        event.target.closest(
+            'input, textarea, select, [contenteditable="true"]'
+        )
+    ) {
+        return;
+    }
+
+    spacePanHeld = true;
+    event.preventDefault();
+});
+
+window.addEventListener("keyup", (event) => {
+    if (event.code === "Space") {
+        spacePanHeld = false;
+    }
+});
+
+// Start moving the view when dragging the black background
+renderer.domElement.addEventListener("pointerdown", (event) => {
+    if (
+        !loadedModel ||
+        event.button !== 0 ||
+        !(event.shiftKey || spacePanHeld)
+    ) {
+        return;
+    }
+
+    // Only move the view when clicking outside the mannequin
+    if (getClickedPart(event)) {
+        return;
+    }
+
+    backgroundPan = {
+        pointerId: event.pointerId,
+        x: event.clientX,
+        y: event.clientY
+    };
+
+    controls.enabled = false;
+
+    renderer.domElement.setPointerCapture(event.pointerId);
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+}, true);
+
+// Move the camera and its target together
+renderer.domElement.addEventListener("pointermove", (event) => {
+    if (
+        !backgroundPan ||
+        event.pointerId !== backgroundPan.pointerId
+    ) {
+        return;
+    }
+
+    const deltaX = event.clientX - backgroundPan.x;
+    const deltaY = event.clientY - backgroundPan.y;
+
+    const distance = camera.position.distanceTo(
+        controls.target
+    );
+
+    const visibleHeight =
+        2 * distance *
+        Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+
+    const pixelsToWorld =
+        visibleHeight / renderer.domElement.clientHeight;
+
+    camera.updateMatrixWorld();
+
+    const right = new THREE.Vector3()
+        .setFromMatrixColumn(camera.matrixWorld, 0);
+
+    const up = new THREE.Vector3()
+        .setFromMatrixColumn(camera.matrixWorld, 1);
+
+    // Move the whole view without changing the mannequin pose
+    const movement = right.multiplyScalar(
+        -deltaX * pixelsToWorld
+    ).addScaledVector(
+        up,
+        deltaY * pixelsToWorld
+    );
+
+    camera.position.add(movement);
+    controls.target.add(movement);
+
+    backgroundPan.x = event.clientX;
+    backgroundPan.y = event.clientY;
+
+    camera.updateMatrixWorld();
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+}, true);
+
+// Stop moving the view when the mouse is released
+function stopBackgroundPan(event) {
+    if (
+        !backgroundPan ||
+        event.pointerId !== backgroundPan.pointerId
+    ) {
+        return;
+    }
+
+    backgroundPan = null;
+    controls.enabled = true;
+
+    if (renderer.domElement.hasPointerCapture(event.pointerId)) {
+        renderer.domElement.releasePointerCapture(event.pointerId);
+    }
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+}
+
+renderer.domElement.addEventListener(
+    "pointerup",
+    stopBackgroundPan,
+    true
+);
+
+renderer.domElement.addEventListener(
+    "pointercancel",
+    stopBackgroundPan,
+    true
+);
+
+// Stop panning if the browser loses focus
+window.addEventListener("blur", () => {
+    spacePanHeld = false;
+
+    if (backgroundPan) {
+        const pointerId = backgroundPan.pointerId;
+        backgroundPan = null;
+
+        if (renderer.domElement.hasPointerCapture(pointerId)) {
+            renderer.domElement.releasePointerCapture(pointerId);
+        }
+
+        controls.enabled = true;
+    }
+});
+
+
 // Find which joint should move when a part is selected
 function findMovableJoint(clickedObject) {
     let object = clickedObject;
@@ -1027,8 +1842,12 @@ function findMovableJoint(clickedObject) {
             targetName = name.replace("Knee_", "Shin_");
         } else if (name.startsWith("Hand_")) {
             targetName = name.replace("Hand_", "Wrist_");
+        } else if (name.startsWith("Palm_")) {
+            targetName = name.replace("Palm_", "Wrist_");
         } else if (name.startsWith("Foot_")) {
             targetName = name.replace("Foot_", "Ankle_");
+        } else if (name.startsWith("Toe_")) {
+            targetName = name.replace("Toe_", "Ankle_");
         } else if (name === "Torso") {
             targetName = "Waist_Joint";
         }
@@ -1043,7 +1862,7 @@ function findMovableJoint(clickedObject) {
     return null;
 }
 
-// Find the hand selected for inverse kinematics
+// Find which joint should move when a part is selected
 function findIKHandSide(clickedObject) {
     let object = clickedObject;
 
@@ -1215,6 +2034,7 @@ function finishHandIKDrag() {
     }
 
     controls.enabled = true;
+
     // Send the pose once, now that the drag has ended
     scheduleMannequinPoseUpdate(); //added so that pose only updates on release (maryam)
     return true;
@@ -1265,10 +2085,18 @@ renderer.domElement.addEventListener("pointermove", (event) => {
     const deltaY = event.clientY - previousMouseY;
     const sensitivity = 0.008;
 
-    draggingJoint.rotation.z += deltaX * sensitivity;
-    draggingJoint.rotation.x += deltaY * sensitivity;
+    const previousRotation = draggingJoint.rotation.clone();
 
-    constrainJointRotation(draggingJoint);
+    // normal drag moves X and Z
+    // hold Alt while dragging to adjust the Y rotation too
+    if (event.altKey) {
+        draggingJoint.rotation.y += deltaX * sensitivity;
+    } else {
+        draggingJoint.rotation.z += deltaX * sensitivity;
+        draggingJoint.rotation.x += deltaY * sensitivity;
+    }
+
+    constrainJointRotation(draggingJoint, previousRotation);
 
     previousMouseX = event.clientX;
     previousMouseY = event.clientY;
@@ -1290,6 +2118,32 @@ function stopJointDragging(event) {
         return;
     }
 
+    // check which hip rotation is used when lifting the leg
+    if (draggingJoint.name.startsWith("Thigh_")) {
+        const rest = draggingJoint.userData.restRotation;
+
+        if (rest) {
+            const rotationDifference = (axis) => {
+                const difference =
+                    draggingJoint.rotation[axis] - rest[axis];
+
+                return THREE.MathUtils.radToDeg(
+                    Math.atan2(
+                        Math.sin(difference),
+                        Math.cos(difference)
+                    )
+                ).toFixed(1);
+            };
+
+            console.log("Hip rotation from rest:", {
+                joint: draggingJoint.name,
+                x: rotationDifference("x"),
+                y: rotationDifference("y"),
+                z: rotationDifference("z")
+            });
+        }
+    }
+
     draggingJoint = null;
     draggingPointerId = null;
     controls.enabled = true;
@@ -1297,6 +2151,7 @@ function stopJointDragging(event) {
     if (renderer.domElement.hasPointerCapture(event.pointerId)) {
         renderer.domElement.releasePointerCapture(event.pointerId);
     }
+
     // Send the pose once, now that the drag has ended
     scheduleMannequinPoseUpdate(); //added so that pose only updates on release (maryam)
 }
@@ -1317,6 +2172,7 @@ window.addEventListener("keydown", (event) => {
 
     const step = THREE.MathUtils.degToRad(5);
     const key = event.key.toLowerCase();
+    const previousRotation = selectedArm.rotation.clone();
 
     if (key === "q") selectedArm.rotation.z += step;
     else if (key === "e") selectedArm.rotation.z -= step;
@@ -1324,7 +2180,7 @@ window.addEventListener("keydown", (event) => {
     else if (key === "s") selectedArm.rotation.x -= step;
     else return;
 
-    constrainJointRotation(selectedArm);
+    constrainJointRotation(selectedArm, previousRotation);
 
     // Send the new mannequin pose after keyboard movement
     scheduleMannequinPoseUpdate();
@@ -1481,46 +2337,46 @@ function addFaceMarker(model) {
         faceWidth * 0.055
     );
 
-function addMouth() {
-    const points = [];
+    function addMouth() {
+        const points = [];
 
-    // Create a curved smile using several surface points.
-    for (let i = 0; i <= 16; i++) {
-        const t = i / 16;
-        const x = THREE.MathUtils.lerp(
-            -faceWidth * 0.15,
-            faceWidth * 0.15,
-            t
-        );
+        // Create a curved smile using several surface points.
+        for (let i = 0; i <= 16; i++) {
+            const t = i / 16;
+            const x = THREE.MathUtils.lerp(
+                -faceWidth * 0.15,
+                faceWidth * 0.15,
+                t
+            );
 
-        const y =
-            -faceHeight * 0.19 -
-            Math.sin(t * Math.PI) * faceHeight * 0.045;
+            const y =
+                -faceHeight * 0.19 -
+                Math.sin(t * Math.PI) * faceHeight * 0.045;
 
-        const origin = new THREE.Vector3(
-            center.x + x,
-            center.y + y,
-            bounds.max.z + size.z
-        );
+            const origin = new THREE.Vector3(
+                center.x + x,
+                center.y + y,
+                bounds.max.z + size.z
+            );
 
-        const worldOrigin = head.localToWorld(origin.clone());
+            const worldOrigin = head.localToWorld(origin.clone());
 
-        const direction = new THREE.Vector3(0, 0, -1)
-            .transformDirection(head.matrixWorld);
+            const direction = new THREE.Vector3(0, 0, -1)
+                .transformDirection(head.matrixWorld);
 
-        localRaycaster.set(worldOrigin, direction);
+            localRaycaster.set(worldOrigin, direction);
 
-        const hit = localRaycaster.intersectObject(head, false)[0];
+            const hit = localRaycaster.intersectObject(head, false)[0];
 
-        if (!hit) continue;
+            if (!hit) continue;
 
-        const localPoint = head.worldToLocal(hit.point.clone());
-        const localNormal = hit.face.normal.clone().normalize();
+            const localPoint = head.worldToLocal(hit.point.clone());
+            const localNormal = hit.face.normal.clone().normalize();
 
-        localPoint.addScaledVector(localNormal, surfaceOffset);
+            localPoint.addScaledVector(localNormal, surfaceOffset);
 
-        points.push(localPoint);
-    }
+            points.push(localPoint);
+        }
 
         if (points.length < 2) return;
 
@@ -1595,6 +2451,10 @@ loader.load(
         alignShoulderPivots(loadedModel);
         saveRestRotations(loadedModel);
 
+        mannequinHeight = new THREE.Box3()
+            .setFromObject(loadedModel)
+            .getSize(new THREE.Vector3()).y;
+
         // Fit the mannequin inside the camera view
         const modelBox = new THREE.Box3().setFromObject(loadedModel);
         const size = modelBox.getSize(new THREE.Vector3());
@@ -1612,15 +2472,20 @@ loader.load(
             size.x / (2 * Math.tan(horizontalFov / 2))
         ) * 1.05;
 
+        // keep the starting view and zoom limits we already fixed
         camera.position.set(
             modelCenter.x,
-            modelCenter.y + size.y * 0.12,
-            modelCenter.z + Math.max(distance, maxDim)
+            modelCenter.y + size.y * 0.10,
+            modelCenter.z + Math.max(distance * 0.85, maxDim * 1.05)
         );
 
         controls.target.copy(modelCenter);
-        controls.minDistance = maxDim * 0.5;
-        controls.maxDistance = maxDim * 15;
+        controls.enablePan = true;
+        controls.enableZoom = true;
+
+        controls.minDistance = distance * 0.25;
+        controls.maxDistance = camera.position.distanceTo(controls.target);
+        controls.zoomSpeed = 0.85;
         controls.update();
 
         console.log("Mannequin loaded successfully.");

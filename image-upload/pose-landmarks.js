@@ -1,3 +1,5 @@
+// Use the same hidden-arm detection as our pose validation
+import { getOccludedArmSides } from "./pose-validation.js";
 
 // Prepare the MediaPipe landmarks using the same midpoint calculations as our Python code
 export function createLandmarkDictionary(landmarks) {
@@ -9,17 +11,71 @@ export function createLandmarkDictionary(landmarks) {
 
     const lmDict = {};
 
+    // Check whether one arm needs an estimated position
+    const hiddenArms = getOccludedArmSides(landmarks);
+
+    // Keep the same rule as pose validation: only one arm may be hidden
+    if (hiddenArms.length > 1) {
+        throw new Error(
+            "Cannot create pose landmarks when both arms are unclear."
+        );
+    }
+
+    // Keep track of the landmarks allowed to be estimated
+    const hiddenArmLandmarks = new Map();
+
+    if (hiddenArms.includes("left")) {
+        [13, 15, 17, 19].forEach((index) => {
+            hiddenArmLandmarks.set(index, 11);
+        });
+    }
+
+    if (hiddenArms.includes("right")) {
+        [14, 16, 18, 20].forEach((index) => {
+            hiddenArmLandmarks.set(index, 12);
+        });
+    }
+
     // Store the X, Y, and Z coordinates for each landmark
     landmarks.forEach((landmark, index) => {
 
-        const { x, y, z } = landmark;
+        const x = landmark?.x;
+        const y = landmark?.y;
+        const z = landmark?.z;
 
         if (![x, y, z].every(Number.isFinite)) {
+
+            // A hidden arm may have missing coordinates.
+            // Its pose segments will be estimated in pose-vector.js.
+            if (hiddenArmLandmarks.has(index)) {
+                return;
+            }
+
             throw new Error(`Invalid landmark at index ${index}.`);
         }
 
         lmDict[index] = [x, y, z];
     });
+
+    // Keep the dictionary complete when a hidden arm has missing points.
+    // These are temporary positions, not real arm measurements.
+    // pose-vector.js replaces the hidden arm directions before scoring.
+    for (const [index, shoulderIndex] of hiddenArmLandmarks) {
+
+        if (lmDict[index]) {
+            continue;
+        }
+
+        const shoulder = lmDict[shoulderIndex];
+
+        if (!shoulder) {
+            throw new Error(
+                `Cannot estimate hidden arm landmark ${index}: shoulder is missing.`
+            );
+        }
+
+        lmDict[index] = [...shoulder];
+    }
 
     // Find the midpoint between two landmarks
     function midpoint(pointA, pointB) {

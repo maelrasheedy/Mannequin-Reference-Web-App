@@ -1,3 +1,4 @@
+
 // pose-matcher
 // parts of pose matcher INCORPORATE COSINE SIMILARITY
 //
@@ -46,6 +47,9 @@
   const MOVED_PART_BOOST = 1;
   const MAX_BOOST_DEGREES = 90;
 
+  // Give a raised leg more importance when searching
+  const RAISED_LEG_BOOST = 2;
+
   // Direction of each boosted part in the mannequin's standing pose
   // (MediaPipe-style axes: x = person's left, y = DOWN, z = toward the camera is negative).
   const REST_DIRECTIONS = {
@@ -59,7 +63,7 @@
     right_knee: [0, 1, 0],
   };
 
-  const MISSING_PART_DEGREES = 30; // error charged for a part the photo lacks
+  const MISSING_PART_DEGREES = 60; // error charged for a part the photo lacks
 
   // Final score = (1 - WORST_PART_MIX) * weighted average error
   //             +      WORST_PART_MIX  * largest single-part error.
@@ -96,7 +100,9 @@
     const dot = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
     const lenA = Math.hypot(a[0], a[1], a[2]);
     const lenB = Math.hypot(b[0], b[1], b[2]);
+
     if (lenA < 1e-9 || lenB < 1e-9) return null;
+
     const c = Math.max(-1, Math.min(1, dot / (lenA * lenB)));
     return (Math.acos(c) * 180) / Math.PI;
   };
@@ -105,18 +111,46 @@
   // applied to limbs the user has moved. Worked out once per search.
   function effectiveWeights(userParts) {
     const weights = {};
+
     for (const [name, base] of Object.entries(WEIGHTS)) {
       weights[name] = base;
+
       const rest = REST_DIRECTIONS[name];
       const user = userParts.get(name);
+
       if (MOVED_PART_BOOST > 0 && rest && user) {
         const moved = angleBetween(toDirection(user), rest);
+
         if (moved !== null) {
           weights[name] =
             base * (1 + (MOVED_PART_BOOST * Math.min(moved, MAX_BOOST_DEGREES)) / MAX_BOOST_DEGREES);
         }
       }
     }
+
+    // Focus more on a leg raised far from the standing pose
+    for (const side of ["left", "right"]) {
+      const hipName = `${side}_hip`;
+      const kneeName = `${side}_knee`;
+      const hip = userParts.get(hipName);
+
+      if (!hip) continue;
+
+      const raisedAngle = angleBetween(
+        toDirection(hip),
+        [0, 1, 0]
+      );
+
+      // Only boost legs raised at least 60 degrees
+      if (raisedAngle !== null && raisedAngle >= 60) {
+        weights[hipName] *= RAISED_LEG_BOOST;
+
+        if (userParts.has(kneeName)) {
+          weights[kneeName] *= RAISED_LEG_BOOST;
+        }
+      }
+    }
+
     return weights;
   }
 
@@ -129,35 +163,61 @@
     let compared = 0;
     let worst = 0;
 
+    // Ignore estimated body parts in reference photos.
+    // Hidden or guessed limbs should not count as real measurements.
+    const estimatedReferenceSegments = new Set(
+      Array.isArray(reference.estimated_segments)
+        ? reference.estimated_segments
+        : []
+    );
+
     const refByName = new Map();
-    for (const p of reference.pose_vector) refByName.set(p.name, p);
+
+    for (const p of reference.pose_vector) {
+      if (!p || typeof p.name !== "string") continue;
+
+      if (!estimatedReferenceSegments.has(p.name)) {
+        refByName.set(p.name, p);
+      }
+    }
 
     for (const name of Object.keys(WEIGHTS)) {
       const weight = w[name];
       const user = userParts.get(name);
+
       if (!user) continue; // the user's pose lacks this part: skip it for everyone
 
       totalWeight += weight;
+
       const ref = refByName.get(name);
+
       if (!ref) {
         weightedError += weight * MISSING_PART_DEGREES;
         continue;
       }
+
       const diff = angleBetween(toDirection(user), toDirection(ref));
+
       if (diff === null) {
         weightedError += weight * MISSING_PART_DEGREES;
         continue;
       }
+
       weightedError += weight * diff;
       compared += 1;
+
       // (judged on the normal weight, so the boost can't pull the neck, hands
       // or feet into the "worst part" check)
-      if (WEIGHTS[name] >= WORST_PART_MIN_WEIGHT && diff > worst) worst = diff;
+      if (WEIGHTS[name] >= WORST_PART_MIN_WEIGHT && diff > worst) {
+        worst = diff;
+      }
     }
 
     if (totalWeight === 0 || compared === 0) return null;
+
     const average = weightedError / totalWeight;
     const score = (1 - WORST_PART_MIX) * average + WORST_PART_MIX * worst;
+
     return { score, partsCompared: compared };
   }
 
@@ -167,15 +227,32 @@
   function rankAll(userPose, references) {
     if (!userPose || !Array.isArray(userPose.pose_vector)) return [];
 
+    // Ignore estimated body parts when comparing reference poses
+    const estimatedSegments = new Set(
+      Array.isArray(userPose.estimated_segments)
+        ? userPose.estimated_segments
+        : []
+    );
+
     const userParts = new Map();
-    for (const p of userPose.pose_vector) userParts.set(p.name, p);
+
+    for (const p of userPose.pose_vector) {
+      if (!estimatedSegments.has(p.name)) {
+        userParts.set(p.name, p);
+      }
+    }
+
     const weights = effectiveWeights(userParts);
 
     const results = [];
+
     for (const ref of references) {
       if (!ref || !Array.isArray(ref.pose_vector)) continue;
+
       const scored = scorePose(userParts, ref, weights);
+
       if (!scored) continue;
+
       results.push({
         id: ref.id,
         url: ref.url,
@@ -196,7 +273,6 @@
     return results;
   }
 
-
   // Photos are split into bands by score: up to 40, then 40-50, then 50-60.
   // Returns:
   //   { groups: [ { level: 40 | 50 | 60 | null, matches: [ ... ] }, ... ],
@@ -211,20 +287,31 @@
     const groups = [];
     let previous = -Infinity;
     let room = limit;
+
     for (const level of levels) {
       if (room <= 0) break;
+
       const band = all
         .filter((r) => r.score > previous && r.score <= level)
         .slice(0, room);
+
       if (band.length > 0) groups.push({ level, matches: band });
+
       room -= band.length;
       previous = level;
     }
 
     if (groups.length === 0) {
       const closest = all.slice(0, Math.min(limit, MIN_RESULTS));
-      return { groups: [{ level: null, matches: closest }], matches: closest, goodMatch: false, level: null };
+
+      return {
+        groups: [{ level: null, matches: closest }],
+        matches: closest,
+        goodMatch: false,
+        level: null
+      };
     }
+
     return {
       groups,
       matches: groups.flatMap((g) => g.matches),
@@ -232,7 +319,6 @@
       level: groups[0].level,
     };
   }
-
 
   function findMatches(userPose, references, topN) {
     return search(userPose, references, topN).matches;
@@ -253,7 +339,10 @@
     DEFAULT_TOP_N,
   };
 
-  if (typeof module !== "undefined" && module.exports) module.exports = api; // Node tests
-  else root.PoseMatcher = api;                                                 // browser
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = api; // Node tests
+  } else {
+    root.PoseMatcher = api; // browser
+  }
 
 })(typeof window !== "undefined" ? window : globalThis);
