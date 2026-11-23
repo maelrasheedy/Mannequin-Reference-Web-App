@@ -6,11 +6,6 @@ Fall 2026 Computer Science Department at
 University of Houston - Clear Lake 
 
 
+Artists often struggle to find figure reference images that best match their inspiration. Most reference image search engines rely on ambiguous language-to-image search and can be overrun with AI-generated images. These systems lack the more accurate image-to-image search specifically for the purpose of pose capture. In the fine arts environment, there is a need for accurate and immediate figure posing to make studying figure art more accessible to beginner, intermediate, and professional artists. A system like this would streamline the reference image search gathering process, lending more time to the actual creation of art. 
 
-
-##Week 2   
-  #10/13/2026   
-Maryam	--> Build the basic webpage layout using HTML and CSS.  
-Anthony -->	Set up a basic Three.js scene and display an initial 3D figure.  
-Rosibel -->	Build the image upload interface and preview functionality using JavaScript.  
-All Team Members --> collect at least ~20 real images for our dummy reference image database
+This Mannequin Reference Website was conceptualized before the existence of Body Angle, but the general inspiration is still credited to: Angle Ref Website (https://angleref.com/) by Will Stroud.
